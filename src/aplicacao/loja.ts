@@ -33,6 +33,7 @@ export class Loja {
   private hlc: Hlc | null = null;
   private aparelho = 'carregando';
   private ouvintes = new Set<() => void>();
+  private ouvintesLocais = new Set<() => void>();
   private foto: Foto;
   private salvando: Promise<void> = Promise.resolve();
 
@@ -61,9 +62,11 @@ export class Loja {
     this.publicar();
   }
 
+  /** Garante que o relógio deste aparelho fique depois de todos os eventos já vistos. */
   private acertarRelogio(eventos: readonly Evento[]): void {
-    const ultimo = eventos.at(-1);
-    if (ultimo) this.hlc = receber(this.hlc, lerHlc(ultimo.hlc), this.agora().getTime(), this.aparelho);
+    let maior: string | null = null;
+    for (const e of eventos) if (maior === null || e.hlc > maior) maior = e.hlc;
+    if (maior) this.hlc = receber(this.hlc, lerHlc(maior), this.agora().getTime(), this.aparelho);
   }
 
   /** Contexto para as regras. "instante" permite gerar dados de demonstração no passado. */
@@ -87,8 +90,30 @@ export class Loja {
   executar(regra: Regra, ctx: Contexto = this.contexto()): Resultado {
     const r = regra(this.foto.estado, ctx);
     const resultado: Resultado = 'ok' in r ? r : { ok: true, eventos: r };
-    if (resultado.ok && resultado.eventos.length > 0) this.incorporar(resultado.eventos);
+    if (resultado.ok && resultado.eventos.length > 0) {
+      this.incorporar(resultado.eventos);
+      for (const o of this.ouvintesLocais) o();
+    }
     return resultado;
+  }
+
+  /**
+   * Recebe eventos vindos do outro celular (sincronização). Ignora os que já conhece e acerta o
+   * relógio para ficar depois deles. Devolve quantos eram novos.
+   */
+  receberRemotos(eventos: readonly Evento[]): number {
+    const conhecidos = new Set(this.eventos.map((e) => e.id));
+    const novos = eventos.filter((e) => !conhecidos.has(e.id));
+    if (novos.length === 0) return 0;
+    this.acertarRelogio(novos);
+    this.incorporar(novos);
+    return novos.length;
+  }
+
+  /** Avisa quando ESTE aparelho cria eventos (para a sincronização enviar logo). */
+  assinarEventosLocais(ouvinte: () => void): () => void {
+    this.ouvintesLocais.add(ouvinte);
+    return () => this.ouvintesLocais.delete(ouvinte);
   }
 
   /** Recebe eventos (da própria regra ou, na Fase 3, da sincronização). */

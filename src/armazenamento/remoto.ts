@@ -45,3 +45,39 @@ export class RemotoEmMemoria implements RepositorioRemoto {
     return this.linhas.length;
   }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Erros que um repositório remoto pode dar (a sincronização reage a cada um de um jeito)
+// ---------------------------------------------------------------------------------------------
+
+/** Sem login válido (token ausente ou vencido): pede "Toque para sincronizar". */
+export class ErroSemAutorizacao extends Error {
+  constructor(mensagem = 'É preciso entrar com o Google de novo.') {
+    super(mensagem);
+    this.name = 'ErroSemAutorizacao';
+  }
+}
+
+/** A conta não tem acesso à planilha (não foi compartilhada, ou foi removida). */
+export class ErroSemAcesso extends Error {
+  constructor(mensagem = 'Esta conta não tem acesso à planilha.') {
+    super(mensagem);
+    this.name = 'ErroSemAcesso';
+  }
+}
+
+/** Sem internet (ou o Google não respondeu). */
+export class ErroDeRede extends Error {
+  constructor(mensagem = 'Sem conexão.') {
+    super(mensagem);
+    this.name = 'ErroDeRede';
+  }
+}
+
+/** Limite de uso da API atingido (quota) ou falha temporária do Google: tentar mais tarde. */
+export class ErroTemporario extends Error {
+  constructor(mensagem = 'O Google pediu para tentar mais tarde.') {
+    super(mensagem);
+    this.name = 'ErroTemporario';
+  }
+}
