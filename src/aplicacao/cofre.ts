@@ -127,9 +127,12 @@ export class Cofre {
     return Math.max(0, TENTATIVAS_MAXIMAS - usadas);
   }
 
-  /** Cria o cofre a partir da frase recém-gerada. Devolve a DEK, já aberta. */
-  async criar(palavras: readonly string[]): Promise<CryptoKey> {
-    const dek = await gerarDek();
+  /**
+   * Cria o cofre a partir da frase recém-gerada e devolve a DEK, já aberta. A DEK pode vir pronta
+   * (gerada antes, para configurar a biometria/PIN primeiro): o cofre só passa a "existir" no fim.
+   */
+  async criar(palavras: readonly string[], dekPronta?: CryptoKey): Promise<CryptoKey> {
+    const dek = dekPronta ?? (await gerarDek());
     await this.gravarMetaDaFrase(dek, palavras);
     return dek;
   }

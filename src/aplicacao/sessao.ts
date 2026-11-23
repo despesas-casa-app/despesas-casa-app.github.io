@@ -45,6 +45,8 @@ export class Sessao {
   private escondidoDesde: number | null = null;
   private temporizador: ReturnType<typeof setTimeout> | undefined;
   private readonly agora: () => number;
+  /** A DEK aberta (só enquanto desbloqueado), para trocar PIN/biometria sem pedir a frase. */
+  private dek: CryptoKey | null = null;
 
   constructor(private readonly deps: DependenciasSessao) {
     this.agora = deps.agora ?? (() => Date.now());
@@ -91,6 +93,7 @@ export class Sessao {
     if (!nomes.ok) throw new Error(nomes.erro === 'invalido' ? nomes.mensagem : 'Não foi possível salvar os nomes.');
     loja.executar((_, ctx) => criarCategoriasIniciais(dados.pctProporcional, ctx));
     await loja.aguardarGravacao();
+    this.dek = dek;
     this.mudar({ fase: 'aberto', loja, modo: 'real' });
   }
 
@@ -98,7 +101,20 @@ export class Sessao {
   async abrir(dek: CryptoKey): Promise<void> {
     const loja = new Loja(new RepositorioCifrado(this.deps.armazem, dek));
     await loja.iniciar();
+    this.dek = dek;
     this.mudar({ fase: 'aberto', loja, modo: 'real' });
+  }
+
+  /** Troca o desbloqueio deste aparelho para PIN (precisa estar desbloqueado). */
+  async configurarPin(pin: string): Promise<void> {
+    if (!this.dek) throw new Error('Desbloqueie o app primeiro.');
+    await this.deps.cofre.configurarPin(this.dek, pin);
+  }
+
+  /** Troca o desbloqueio deste aparelho para biometria (precisa estar desbloqueado). */
+  async configurarBiometria(nomePessoa: string): Promise<void> {
+    if (!this.dek) throw new Error('Desbloqueie o app primeiro.');
+    await this.deps.cofre.configurarBiometria(this.dek, nomePessoa);
   }
 
   /** Bloqueia agora (só no modo real; a demonstração não tem segredo). */
@@ -111,6 +127,7 @@ export class Sessao {
 
   /** Volta à tela de bloqueio (ex.: depois de 10 PINs errados o método some). */
   async irParaBloqueado(): Promise<void> {
+    this.dek = null;
     this.mudar({ fase: 'bloqueado', metodo: await this.deps.cofre.metodo() });
   }
 
@@ -118,6 +135,7 @@ export class Sessao {
   async apagarDadosDoAparelho(): Promise<void> {
     if (this.estado.fase === 'aberto') await this.estado.loja.aguardarGravacao();
     await this.deps.armazem.apagarTudo();
+    this.dek = null;
     this.mudar({ fase: 'boas-vindas' });
   }
 
