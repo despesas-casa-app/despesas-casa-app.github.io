@@ -146,13 +146,39 @@ reaproveitando o mesmo motor. O modelo já nasce preparado para isso.
   offline não dupliquem nada.
 - Recorrentes de valor variável entram com status **"aguardando valor"** e aparecem como
   pendência no topo da tela inicial.
+- Ao cadastrar, o dia do vencimento é informado à parte ("Vence todo dia"), sem valor padrão.
+- **Edição completa:** tudo pode ser editado (valor fixo/variável, valor, descrição, categoria,
+  quem paga, divisão, dia, início e fim). Opção (marcada por padrão) de atualizar também as
+  despesas já lançadas em **meses ainda não acertados**:
+  - cada campo só muda na despesa se ela ainda estiver igual ao que a recorrente gerou (o que foi
+    mudado à mão naquela despesa fica como está);
+  - de "variável" para "fixo", as que aguardavam valor recebem o valor novo;
+  - as que ficarem fora do novo período (início/fim) são excluídas.
+  - Se o início ficar mais cedo, os meses que faltam são gerados na hora (menos os acertados).
+  - Meses acertados nunca mudam.
 
 **Parcelamentos**
 - Ao lançar uma compra parcelada, gerar **todas as parcelas de uma vez**, cada uma na sua
   competência e com id determinístico (parcelamentoId + k).
 - Quando informado pelo valor total, os centavos que não dividem por igual vão para a 1ª parcela.
 - Exibir como "Sofá 3/10".
-- É possível editar ou cancelar as parcelas restantes (ex.: antecipação).
+- É possível cancelar as parcelas restantes (ex.: antecipação).
+- **Edição completa:** descrição, categoria, quem pagou, divisão, valor (total ou por parcela),
+  nº de parcelas, data da compra e mês da 1ª parcela. Parcelas de **meses acertados nunca
+  mudam**; as demais seguem estas regras:
+  - descrição, categoria, quem pagou e divisão valem para todas as parcelas em aberto;
+  - mudou o valor ou o nº de parcelas: pelo total, o que falta (total − já acertado) é dividido
+    entre as parcelas em aberto (centavos que sobram na primeira delas); pela parcela, cada uma
+    em aberto passa a ter esse valor. Parcelas excluídas à mão voltam a existir nesse caso;
+  - menos parcelas: as que sobram são excluídas; mais parcelas: as novas entram nos meses
+    seguintes;
+  - mudou a data da compra ou o mês da 1ª parcela: as parcelas em aberto mudam de data/mês. O mês
+    da 1ª parcela não muda se já houver parcela acertada;
+  - é recusada a edição que deixaria uma parcela num mês já acertado, ou um nº de parcelas menor
+    que o da última parcela acertada;
+  - parcelamento cancelado: só descrição, categoria, quem pagou e divisão.
+  - No feed de Atividade, a edição aparece numa linha só; a linha do tempo de cada parcela mostra
+    o detalhe.
 
 **Saldo do mês**
 - Para cada pessoa: saldo = total que ela pagou − soma das cotas dela.
@@ -357,7 +383,8 @@ categorias. Depois disso, cada categoria é editada individualmente.
    - descrição com autocomplete;
    - sugestões de categoria, % e quem pagou;
    - data e competência;
-   - opções recolhidas: "Parcelado" e "Repetir todo mês".
+   - "Tipo" (Só esta vez / Parcelado / Todo mês) e, em "Todo mês", "Valor fixo / muda todo mês"
+     ficam no topo, antes do valor (o valor some quando muda todo mês);
 3. **Despesas do mês**
    - lista por competência, com filtros por categoria e por pessoa;
    - selo "editado por …" e linha do tempo da despesa.
@@ -367,7 +394,8 @@ categorias. Depois disso, cada categoria é editada individualmente.
    - quanto cada um pagou.
 5. **Acertar contas:** resumo do mês, transferência e confirmação de fechamento.
 6. **Categorias:** criar, editar, arquivar e reordenar, e definir a divisão padrão.
-7. **Recorrentes e parcelamentos:** listar, editar, pausar e encerrar.
+7. **Recorrentes e parcelamentos:** listar, editar (tela completa), pausar e encerrar; a partir de
+   uma despesa gerada, o link "Editar a recorrente / o parcelamento" leva direto à edição.
 8. **Atividade:** histórico geral em feed limpo, agrupado por dia.
    Exemplo: "Pessoa B alterou Mercado: R$ 120 → R$ 150".
 9. **Configurações**

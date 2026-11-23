@@ -47,8 +47,11 @@ function nomeCategoria(cats: Map<string, Campos>, id: ValorCampo | undefined): s
   return texto(cats.get(texto(id))?.['nome']) || 'sem categoria';
 }
 
-/** Monta o feed, do mais recente para o mais antigo. */
-export function gerarAtividade(eventos: readonly Evento[], config: Config): ItemAtividade[] {
+/**
+ * Monta o feed, do mais recente para o mais antigo. "linhaDoTempo" (o histórico de UMA despesa)
+ * mostra também as mudanças que, no feed geral, já aparecem resumidas numa linha só.
+ */
+export function gerarAtividade(eventos: readonly Evento[], config: Config, linhaDoTempo = false): ItemAtividade[] {
   const ordenados = ordenarSemRepetir(eventos);
   const estado = new Map<string, Campos>();
   const categorias = new Map<string, Campos>();
@@ -65,6 +68,8 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
     const depois = { ...(antes ?? {}), ...e.campos };
     estado.set(chave, depois);
     if (e.entidade === 'categoria') categorias.set(e.entidadeId, depois);
+    // Edição de um parcelamento: as parcelas mudam juntas e o feed mostra só "alterou o parcelamento".
+    if (!linhaDoTempo && e.entidade === 'despesa' && e.campos['motivo'] === 'parcelamento-editado') continue;
 
     const quem = nomeDe(config, e.autor);
     const importado = !antes && (depois['origemTipo'] === 'importada' || (e.entidade === 'fechamento' && depois['importado'] === true));
@@ -132,8 +137,12 @@ function descrever(
       if (e.campos['excluida'] === true) return [`${quem} excluiu a recorrente ${nome}`];
       if (e.campos['ativa'] === false) return [`${quem} pausou a recorrente ${nome}`];
       if (e.campos['ativa'] === true) return [`${quem} retomou a recorrente ${nome}`];
-      if ('fim' in e.campos && texto(e.campos['fim'])) {
+      // "Encerrar" muda só o fim; a edição completa pode mudar o fim junto com outras coisas.
+      if (Object.keys(e.campos).length === 1 && texto(e.campos['fim'])) {
         return [`${quem} encerrou a recorrente ${nome} em ${nomeDaCompetencia(texto(e.campos['fim']))}`];
+      }
+      if (texto(antes['descricao']) && texto(antes['descricao']) !== nome) {
+        return [`${quem} alterou a recorrente ${texto(antes['descricao'])} (agora ${nome})`];
       }
       return [`${quem} alterou a recorrente ${nome}`];
     case 'parcelamento':
@@ -141,6 +150,9 @@ function descrever(
         return [`${quem} lançou ${nome} em ${String(depois['n'])}x (total ${reais(depois['valorTotal'])})`];
       }
       if (e.campos['status'] === 'cancelado') return [`${quem} cancelou as parcelas restantes de ${nome}`];
+      if ('n' in e.campos || 'valorTotal' in e.campos) {
+        return [`${quem} alterou o parcelamento ${nome}: agora ${String(depois['n'])}x, total ${reais(depois['valorTotal'])}`];
+      }
       return [`${quem} alterou o parcelamento ${nome}`];
     case 'fechamento': {
       const mes = nomeDaCompetencia(texto(depois['competencia']));

@@ -15,11 +15,12 @@ import { dividir } from '../../dominio/divisao.ts';
 import { categoriaPorId, despesaPorId, nomeDe, type Despesa, type Estado } from '../../dominio/estado.ts';
 import { reabrirMes } from '../../dominio/fechamento.ts';
 import { criarParcelamento, MAXIMO_PARCELAS, valoresDasParcelas } from '../../dominio/parcelamentos.ts';
-import { formatarPercentual, lerPercentual } from '../../dominio/percentual.ts';
 import { criarRecorrente } from '../../dominio/recorrentes.ts';
 import { categoriasMaisUsadas, normalizarTexto, preverCategoria, sugerir, type Sugestao } from '../../dominio/sugestoes.ts';
 import { LIVRO_CASA, type Competencia, type Pessoa, type PontosBase } from '../../dominio/tipos.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos, Vazio } from '../componentes/Basicos.tsx';
+import { CampoDivisao, SeletorCategoria } from '../componentes/CamposLancamento.tsx';
+import { pctADoTexto, pctDe, pctParaTexto } from '../componentes/percentualTela.ts';
 import { CampoValor } from '../componentes/CampoValor.tsx';
 import { Icone } from '../componentes/Icone.tsx';
 import { hojeISO, useAvisar, useFoto, useLoja } from '../contexto.tsx';
@@ -41,6 +42,8 @@ interface Formulario {
   parcelas: number;
   baseParcela: 'total' | 'parcela';
   tipoValor: 'fixo' | 'variavel';
+  /** Dia do vencimento da recorrente (0 = ainda não informado). */
+  dia: number;
 }
 
 /** Janela de mês fechado: o que fazer com o lançamento. */
@@ -48,15 +51,6 @@ interface MesFechadoPendente {
   readonly competencia: Competencia;
   /** Se dá para "mover para o mês em aberto" (despesa nova ou que ficou fora do acerto). */
   readonly podeMover: boolean;
-}
-
-/** % de quem usa o aparelho, a partir do % da Pessoa A (e vice-versa: a conta é a mesma). */
-function pctDe(euSou: Pessoa, pctA: PontosBase): PontosBase {
-  return euSou === 'A' ? pctA : 10000 - pctA;
-}
-
-function pctParaTexto(p: PontosBase): string {
-  return formatarPercentual(p).replace('%', '');
 }
 
 function formularioInicial(estado: Estado, euSou: Pessoa, modo: Modo, existente?: Despesa): Formulario {
@@ -75,6 +69,7 @@ function formularioInicial(estado: Estado, euSou: Pessoa, modo: Modo, existente?
       parcelas: 2,
       baseParcela: 'total',
       tipoValor: 'fixo',
+      dia: 0,
     };
   }
   const ativas = estado.categorias.filter((c) => c.ativa);
@@ -94,6 +89,7 @@ function formularioInicial(estado: Estado, euSou: Pessoa, modo: Modo, existente?
     parcelas: 2,
     baseParcela: 'total',
     tipoValor: 'fixo',
+    dia: 0,
   };
 }
 
@@ -112,8 +108,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
   const editando = Boolean(existente);
   const categoria = categoriaPorId(estado, f.categoriaId);
   // O campo mostra "sua parte"; por dentro a despesa guarda o % da Pessoa A.
-  const meuPct = lerPercentual(f.pctTexto);
-  const pct = meuPct === null ? null : pctDe(euSou, meuPct);
+  const pct = pctADoTexto(euSou, f.pctTexto);
   const textoMeu = (pctA: PontosBase): string => pctParaTexto(pctDe(euSou, pctA));
   const outro = euSou === 'A' ? 'B' : 'A';
   const sugestoes = useMemo(
@@ -121,7 +116,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
     [estado, f.descricao, mostrarSugestoes, editando],
   );
   const historico = useMemo(
-    () => (existente ? gerarAtividade(estado.projecao.eventos.filter((e) => e.entidadeId === existente.id), estado.config) : []),
+    () => (existente ? gerarAtividade(estado.projecao.eventos.filter((e) => e.entidadeId === existente.id), estado.config, true) : []),
     [estado, existente],
   );
 
@@ -192,11 +187,6 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
     } else mudar({ descricao });
   };
 
-  const mudarPct = (texto: string): void => {
-    const meu = lerPercentual(texto);
-    mudar({ pctTexto: texto, pctPadrao: meu !== null && pctDe(euSou, meu) === categoria?.pctA });
-  };
-
   const mudarData = (data: string): void => {
     if (!ehDataValida(data)) {
       mudar({ data });
@@ -246,7 +236,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
         criarRecorrente(e, {
           descricao: dados.descricao, categoriaId: dados.categoriaId, pagador: dados.pagador,
           tipoValor: f.tipoValor, valor: f.tipoValor === 'fixo' ? f.valor : 0,
-          dia: Number(dados.data.slice(8, 10)), inicio: competencia, fim: null,
+          dia: f.dia, inicio: competencia, fim: null,
           pctA: dados.pctPadrao ? null : dados.pctA,
         }, ctx),
       );
@@ -311,13 +301,6 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
 
   // --- Prévia da divisão ---
   const cotas = pct !== null && f.valor > 0 ? dividir(f.modo === 'parcelado' && f.baseParcela === 'total' ? valoresDasParcelas(f.valor, Math.max(2, f.parcelas))[0] ?? f.valor : f.valor, pct, f.pagador) : null;
-  const ativas = estado.categorias.filter((c) => c.ativa || c.id === f.categoriaId);
-  const ordem = categoriasMaisUsadas(estado);
-  const categoriasOrdenadas = [...ativas].sort((a, b) => {
-    const ia = ordem.indexOf(a.id);
-    const ib = ordem.indexOf(b.id);
-    return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib) || a.ordem - b.ordem;
-  });
   const aguardando = existente?.status === 'aguardando';
   const pedeValor = !(f.modo === 'recorrente' && f.tipoValor === 'variavel');
   const rotuloValor =
@@ -337,149 +320,19 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
         {existente?.origem.tipo === 'parcela' && (
           <p className="faixa faixa-info">
             Parcela {existente.origem.k} de {existente.origem.n}.{' '}
-            <button type="button" className="link" onClick={() => { navegar({ tela: 'recorrentes' }); }}>
-              Gerenciar parcelamento
+            <button type="button" className="link" onClick={() => { if (existente.origem.tipo === 'parcela') navegar({ tela: 'editar-parcelamento', id: existente.origem.id }); }}>
+              Editar o parcelamento
             </button>
           </p>
         )}
         {existente?.origem.tipo === 'recorrente' && (
           <p className="faixa faixa-info">
             Gerada por uma recorrente.{' '}
-            <button type="button" className="link" onClick={() => { navegar({ tela: 'recorrentes' }); }}>
-              Gerenciar recorrentes
+            <button type="button" className="link" onClick={() => { if (existente.origem.tipo === 'recorrente') navegar({ tela: 'editar-recorrente', id: existente.origem.id }); }}>
+              Editar a recorrente
             </button>
           </p>
         )}
-
-        {pedeValor && (
-          <CampoValor
-            id="campo-valor"
-            rotulo={rotuloValor}
-            centavos={f.valor}
-            aoMudar={(valor) => { mudar({ valor }); }}
-            autoFocus={!existente || aguardando}
-            grande
-          />
-        )}
-
-        <div className="campo">
-          <label htmlFor="campo-descricao">Descrição</label>
-          <input
-            id="campo-descricao"
-            type="text"
-            autoComplete="off"
-            autoCapitalize="sentences"
-            enterKeyHint="done"
-            maxLength={120}
-            value={f.descricao}
-            placeholder="Ex.: Mercado"
-            onChange={(e) => { digitarDescricao(e.target.value); }}
-            onFocus={() => { setMostrarSugestoes(true); }}
-          />
-          {sugestoes.length > 0 && (
-            <ul className="sugestoes" aria-label="Sugestões">
-              {sugestoes.map((s) => {
-                const cat = categoriaPorId(estado, s.categoriaId);
-                return (
-                  <li key={s.descricao}>
-                    <button type="button" onClick={() => { aplicarSugestao(s); }}>
-                      <span aria-hidden="true">{cat?.icone}</span>
-                      <strong>{s.descricao}</strong>
-                      <small>
-                        {cat?.nome} · {nomeDe(estado.config, s.pagador)}
-                      </small>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        <fieldset className="campo">
-          <legend>Categoria</legend>
-          <div className="chips">
-            {categoriasOrdenadas.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className={c.id === f.categoriaId ? 'chip ativo' : 'chip'}
-                aria-pressed={c.id === f.categoriaId}
-                onClick={() => { escolherCategoria(c.id); }}
-              >
-                <span aria-hidden="true">{c.icone}</span> {c.nome}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <div className="campo">
-          <span className="rotulo">Quem pagou</span>
-          <Segmentos
-            rotulo="Quem pagou"
-            opcoes={[
-              { valor: 'A', texto: estado.config.nomeA },
-              { valor: 'B', texto: estado.config.nomeB },
-            ]}
-            valor={f.pagador}
-            aoMudar={(pagador) => { mudar({ pagador }); }}
-          />
-        </div>
-
-        <div className="campo">
-          <label htmlFor="campo-pct">Sua parte nesta despesa ({nomeDe(estado.config, euSou)})</label>
-          <div className="linha-pct">
-            <input
-              id="campo-pct"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={f.pctTexto}
-              onChange={(e) => { mudarPct(e.target.value); }}
-              aria-describedby="pct-ajuda"
-            />
-            <span className="sufixo">%</span>
-            <span className="pct-outro">
-              {meuPct === null ? '' : `${nomeDe(estado.config, outro)}: ${formatarPercentual(10000 - meuPct)}`}
-            </span>
-          </div>
-          <div className="linha-pct">
-            <button type="button" className="botao-mini" onClick={() => { mudarPct('50'); }}>
-              Metade cada
-            </button>
-            {categoria && !f.pctPadrao && (
-              <button type="button" className="botao-mini" onClick={() => { mudar({ pctTexto: textoMeu(categoria.pctA), pctPadrao: true }); }}>
-                Voltar ao padrão ({formatarPercentual(pctDe(euSou, categoria.pctA))})
-              </button>
-            )}
-          </div>
-          <p id="pct-ajuda" className="ajuda">
-            {meuPct === null
-              ? 'Use um número de 0 a 100, com até 2 casas.'
-              : f.pctPadrao
-                ? `Padrão da categoria ${categoria?.nome ?? ''}.`
-                : 'Divisão só desta despesa.'}
-            {cotas &&
-              ` Sua parte: ${formatarReais(cotas[euSou])} · parte de ${nomeDe(estado.config, outro)}: ${formatarReais(cotas[outro])}${f.modo === 'parcelado' ? ' (por parcela)' : ''}.`}
-          </p>
-        </div>
-
-        <div className="campo-duplo">
-          <div className="campo">
-            <label htmlFor="campo-data">{f.modo === 'parcelado' ? 'Data da compra' : f.modo === 'recorrente' ? '1º vencimento' : 'Data'}</label>
-            <input id="campo-data" type="date" value={f.data} onChange={(e) => { mudarData(e.target.value); }} required />
-          </div>
-          <div className="campo">
-            <label htmlFor="campo-competencia">{f.modo === 'parcelado' ? '1ª parcela em' : 'Mês da conta'}</label>
-            <input
-              id="campo-competencia"
-              type="month"
-              value={f.competencia}
-              onChange={(e) => { if (e.target.value) mudar({ competencia: e.target.value, competenciaManual: true }); }}
-              required
-            />
-          </div>
-        </div>
 
         {!editando && (
           <div className="campo">
@@ -544,11 +397,131 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
                   aoMudar={(tipoValor) => { mudar({ tipoValor }); }}
                 />
                 <p className="ajuda">
-                  Todo dia {f.data.slice(8, 10)} entra sozinha no mês certo.
+                  {f.dia > 0 ? `Todo dia ${String(f.dia)} entra sozinha no mês certo.` : 'Informe o dia do vencimento logo abaixo.'}
                   {f.tipoValor === 'variavel' && ' Ela aparece como "aguardando valor" na tela inicial.'}
                 </p>
               </div>
             )}
+          </div>
+        )}
+
+        {pedeValor && (
+          <CampoValor
+            id="campo-valor"
+            rotulo={rotuloValor}
+            centavos={f.valor}
+            aoMudar={(valor) => { mudar({ valor }); }}
+            autoFocus={!existente || aguardando}
+            grande
+          />
+        )}
+
+        <div className="campo">
+          <label htmlFor="campo-descricao">Descrição</label>
+          <input
+            id="campo-descricao"
+            type="text"
+            autoComplete="off"
+            autoCapitalize="sentences"
+            enterKeyHint="done"
+            maxLength={120}
+            value={f.descricao}
+            placeholder="Ex.: Mercado"
+            onChange={(e) => { digitarDescricao(e.target.value); }}
+            onFocus={() => { setMostrarSugestoes(true); }}
+          />
+          {sugestoes.length > 0 && (
+            <ul className="sugestoes" aria-label="Sugestões">
+              {sugestoes.map((s) => {
+                const cat = categoriaPorId(estado, s.categoriaId);
+                return (
+                  <li key={s.descricao}>
+                    <button type="button" onClick={() => { aplicarSugestao(s); }}>
+                      <span aria-hidden="true">{cat?.icone}</span>
+                      <strong>{s.descricao}</strong>
+                      <small>
+                        {cat?.nome} · {nomeDe(estado.config, s.pagador)}
+                      </small>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <SeletorCategoria estado={estado} valor={f.categoriaId} aoMudar={escolherCategoria} />
+
+        <div className="campo">
+          <span className="rotulo">Quem pagou</span>
+          <Segmentos
+            rotulo="Quem pagou"
+            opcoes={[
+              { valor: 'A', texto: estado.config.nomeA },
+              { valor: 'B', texto: estado.config.nomeB },
+            ]}
+            valor={f.pagador}
+            aoMudar={(pagador) => { mudar({ pagador }); }}
+          />
+        </div>
+
+        <CampoDivisao
+          estado={estado}
+          euSou={euSou}
+          categoria={categoria}
+          pctTexto={f.pctTexto}
+          pctPadrao={f.pctPadrao}
+          aoMudar={(pctTexto, pctPadrao) => { mudar({ pctTexto, pctPadrao }); }}
+          complemento={
+            cotas
+              ? ` Sua parte: ${formatarReais(cotas[euSou])} · parte de ${nomeDe(estado.config, outro)}: ${formatarReais(cotas[outro])}${f.modo === 'parcelado' ? ' (por parcela)' : ''}.`
+              : undefined
+          }
+        />
+
+        {f.modo === 'recorrente' ? (
+          <div className="campo-duplo">
+            <div className="campo">
+              <label htmlFor="campo-dia">Vence todo dia</label>
+              <input
+                id="campo-dia"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={f.dia || ''}
+                placeholder="Ex.: 10"
+                onChange={(e) => { mudar({ dia: Math.trunc(Number(e.target.value)) || 0 }); }}
+                required
+              />
+            </div>
+            <div className="campo">
+              <label htmlFor="campo-competencia">Começa em</label>
+              <input
+                id="campo-competencia"
+                type="month"
+                value={f.competencia}
+                onChange={(e) => { if (e.target.value) mudar({ competencia: e.target.value, competenciaManual: true }); }}
+                required
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="campo-duplo">
+            <div className="campo">
+              <label htmlFor="campo-data">{f.modo === 'parcelado' ? 'Data da compra' : 'Data'}</label>
+              <input id="campo-data" type="date" value={f.data} onChange={(e) => { mudarData(e.target.value); }} required />
+            </div>
+            <div className="campo">
+              <label htmlFor="campo-competencia">{f.modo === 'parcelado' ? '1ª parcela em' : 'Mês da conta'}</label>
+              <input
+                id="campo-competencia"
+                type="month"
+                value={f.competencia}
+                onChange={(e) => { if (e.target.value) mudar({ competencia: e.target.value, competenciaManual: true }); }}
+                required
+              />
+            </div>
           </div>
         )}
 

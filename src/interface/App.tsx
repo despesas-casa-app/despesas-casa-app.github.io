@@ -20,6 +20,7 @@ import { EditarDespesa } from './telas/EditarDespesa.tsx';
 import { ImportarTricount } from './telas/ImportarTricount.tsx';
 import { Inicio } from './telas/Inicio.tsx';
 import { Mais } from './telas/Mais.tsx';
+import { EditarParcelamento, EditarRecorrente } from './telas/EditarModelos.tsx';
 import { Recorrentes } from './telas/Recorrentes.tsx';
 import { Relatorios } from './telas/Relatorios.tsx';
 
@@ -43,6 +44,10 @@ function Tela({ rota }: { rota: Rota }) {
       return <Categorias />;
     case 'recorrentes':
       return <Recorrentes />;
+    case 'editar-recorrente':
+      return <EditarRecorrente key={rota.id} id={rota.id} />;
+    case 'editar-parcelamento':
+      return <EditarParcelamento key={rota.id} id={rota.id} />;
     case 'atividade':
       return <Atividade />;
     case 'configuracoes':
@@ -61,9 +66,12 @@ const ABAS: readonly { tela: Rota['tela']; rota: Rota; icone: NomeIcone; texto: 
     rota: { tela: 'mais' },
     icone: 'menu',
     texto: 'Mais',
-    grupo: ['mais', 'acertar', 'categorias', 'recorrentes', 'atividade', 'configuracoes', 'importar-tricount'],
+    grupo: ['mais', 'acertar', 'categorias', 'recorrentes', 'editar-recorrente', 'editar-parcelamento', 'atividade', 'configuracoes', 'importar-tricount'],
   },
 ];
+
+/** Telas com botão "Salvar" fixo no rodapé: escondem a barra de navegação. */
+const TELAS_DE_FORMULARIO: readonly Rota['tela'][] = ['nova', 'editar', 'editar-recorrente', 'editar-parcelamento'];
 
 function BarraNavegacao({ rota }: { rota: Rota }) {
   const abrirNova = (): void => {
@@ -197,7 +205,7 @@ export function App() {
       )}
       <FaixaSincronizacao />
       <Tela rota={rota} />
-      {rota.tela !== 'nova' && rota.tela !== 'editar' && <BarraNavegacao rota={rota} />}
+      {!TELAS_DE_FORMULARIO.includes(rota.tela) && <BarraNavegacao rota={rota} />}
       <AvisoMesFechado />
       <AvisoInicial />
     </>

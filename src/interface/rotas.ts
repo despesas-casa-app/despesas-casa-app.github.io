@@ -15,6 +15,8 @@ export type Rota =
   | { readonly tela: 'mais' }
   | { readonly tela: 'categorias' }
   | { readonly tela: 'recorrentes' }
+  | { readonly tela: 'editar-recorrente'; readonly id: string }
+  | { readonly tela: 'editar-parcelamento'; readonly id: string }
   | { readonly tela: 'atividade' }
   | { readonly tela: 'configuracoes' }
   | { readonly tela: 'importar-tricount' };
@@ -35,6 +37,12 @@ export function lerRota(hash: string): Rota {
         return { tela: 'nova', modo: modo === 'parcelado' || modo === 'recorrente' ? modo : 'unica' };
       }
       return { tela: 'editar', id: decodeURIComponent(id) };
+    }
+    case 'recorrente':
+    case 'parcelamento': {
+      const id = partes[1];
+      if (!id) return { tela: 'recorrentes' };
+      return { tela: partes[0] === 'recorrente' ? 'editar-recorrente' : 'editar-parcelamento', id: decodeURIComponent(id) };
     }
     case 'relatorios':
     case 'acertar':
@@ -58,6 +66,10 @@ export function hashDaRota(r: Rota): string {
       return r.modo === 'unica' ? '#/despesa/nova' : `#/despesa/nova?modo=${r.modo}`;
     case 'editar':
       return `#/despesa/${encodeURIComponent(r.id)}`;
+    case 'editar-recorrente':
+      return `#/recorrente/${encodeURIComponent(r.id)}`;
+    case 'editar-parcelamento':
+      return `#/parcelamento/${encodeURIComponent(r.id)}`;
     case 'despesas':
       return r.categoriaId ? `#/despesas?categoria=${encodeURIComponent(r.categoriaId)}` : '#/despesas';
     default:

@@ -1,9 +1,9 @@
 import { competenciaDaData, dataNoMes, ehCompetencia, mesesEntre } from './competencia.ts';
 import { invalido, novoEvento, sucesso, type Contexto, type Resultado } from './contexto.ts';
-import { camposNovaDespesa } from './despesas.ts';
+import { alterarDespesa, camposNovaDespesa, type DadosDespesa } from './despesas.ts';
 import { ehCentavosValidos, type Centavos } from './dinheiro.ts';
 import type { Evento, ValorCampo } from './eventos.ts';
-import { categoriaPorId, mesFechado, type Estado, type Recorrente } from './estado.ts';
+import { categoriaPorId, mesFechado, type Despesa, type Estado, type Recorrente } from './estado.ts';
 import { ehPercentualValido } from './percentual.ts';
 import { LIVRO_CASA, type Competencia, type Pessoa, type PontosBase } from './tipos.ts';
 
@@ -31,7 +31,7 @@ function validar(estado: Estado, d: DadosRecorrente): string | null {
   if (d.descricao.trim() === '') return 'Informe a descrição.';
   if (!categoriaPorId(estado, d.categoriaId)) return 'Escolha uma categoria.';
   if (d.tipoValor === 'fixo' && (!ehCentavosValidos(d.valor) || d.valor <= 0)) return 'Informe o valor.';
-  if (!Number.isInteger(d.dia) || d.dia < 1 || d.dia > 31) return 'Dia do mês inválido.';
+  if (!Number.isInteger(d.dia) || d.dia < 1 || d.dia > 31) return 'Informe o dia do vencimento (de 1 a 31).';
   if (!ehCompetencia(d.inicio)) return 'Mês de início inválido.';
   if (d.fim !== null && (!ehCompetencia(d.fim) || d.fim < d.inicio)) return 'Mês de fim inválido.';
   if (d.pctA !== null && !ehPercentualValido(d.pctA)) return 'Percentual inválido.';
@@ -79,6 +79,96 @@ export function alterarRecorrente(estado: Estado, id: string, d: DadosRecorrente
   const mudou: Record<string, ValorCampo> = {};
   for (const [k, v] of Object.entries(novos)) if (antigos[k] !== v) mudou[k] = v;
   return sucesso(Object.keys(mudou).length ? [novoEvento(ctx, 'alterar', 'recorrente', id, mudou)] : []);
+}
+
+/**
+ * Despesas já geradas por esta recorrente em meses ainda não acertados. São as que a edição
+ * completa pode atualizar junto (meses fechados nunca mudam).
+ */
+export function ocorrenciasEmAberto(estado: Estado, recorrenteId: string): Despesa[] {
+  return estado.despesas
+    .filter(
+      (d) =>
+        !d.excluida &&
+        d.origem.tipo === 'recorrente' &&
+        d.origem.id === recorrenteId &&
+        !mesFechado(estado, d.livro, d.competencia),
+    )
+    .sort((a, b) => (a.competencia < b.competencia ? -1 : a.competencia > b.competencia ? 1 : 0));
+}
+
+type Mudancas = { -readonly [K in keyof DadosDespesa]?: DadosDespesa[K] };
+
+/**
+ * O que muda numa ocorrência já lançada quando a recorrente é editada. Só mexe no que a pessoa
+ * NÃO mudou à mão: cada campo só é atualizado se ainda estiver igual ao que a recorrente antiga
+ * gerou. Ex.: se o aluguel de novembro foi editado para R$ 2.050, mudar a recorrente de
+ * R$ 2.000 para R$ 2.100 não mexe nesse mês.
+ */
+function mudancasNaOcorrencia(estado: Estado, d: Despesa, antiga: Recorrente, nova: DadosRecorrente): Mudancas {
+  const m: Mudancas = {};
+  const descricao = nova.descricao.trim();
+  if (descricao !== antiga.descricao && d.descricao === antiga.descricao) m.descricao = descricao;
+  if (nova.pagador !== antiga.pagador && d.pagador === antiga.pagador) m.pagador = nova.pagador;
+  const categoriaMudou = nova.categoriaId !== antiga.categoriaId;
+  if (categoriaMudou && d.categoriaId === antiga.categoriaId) m.categoriaId = nova.categoriaId;
+
+  // Divisão: a ocorrência segue a recorrente se ainda usa o % que ela deu.
+  const pctSeguia = antiga.pctA === null ? d.pctPadrao : d.pctA === antiga.pctA;
+  const pctMudou = nova.pctA !== antiga.pctA || (nova.pctA === null && categoriaMudou);
+  if (pctMudou && pctSeguia) {
+    const pctA = nova.pctA ?? categoriaPorId(estado, nova.categoriaId)?.pctA ?? d.pctA;
+    if (pctA !== d.pctA) m.pctA = pctA;
+    if (d.pctPadrao !== (nova.pctA === null)) m.pctPadrao = nova.pctA === null;
+  }
+
+  if (nova.dia !== antiga.dia && d.data === dataNoMes(d.competencia, antiga.dia)) {
+    m.data = dataNoMes(d.competencia, nova.dia);
+  }
+
+  if (nova.tipoValor === 'fixo') {
+    const seguiaValor =
+      antiga.tipoValor === 'fixo' ? d.status === 'normal' && d.valor === antiga.valor : d.status === 'aguardando';
+    if (seguiaValor && d.valor !== nova.valor) m.valor = nova.valor;
+  }
+  return m;
+}
+
+/**
+ * Edição completa (tela "Editar recorrente"). Muda a recorrente e, se "aplicarNasLancadas",
+ * também as despesas que ela já lançou em meses ainda não acertados:
+ * - atualiza os campos que mudaram (menos o que foi mudado à mão naquela despesa);
+ * - exclui as que ficaram fora do novo período (início/fim).
+ * Depois, gera na hora os meses que faltam até o mês corrente (ex.: início mais cedo).
+ */
+export function editarRecorrente(
+  estado: Estado,
+  id: string,
+  d: DadosRecorrente,
+  aplicarNasLancadas: boolean,
+  ctx: Contexto,
+): Resultado {
+  const r = alterarRecorrente(estado, id, d, ctx);
+  const antiga = estado.recorrentes.find((x) => x.id === id);
+  if (!r.ok || !antiga) return r;
+  const eventos: Evento[] = [...r.eventos];
+
+  if (aplicarNasLancadas) {
+    for (const o of ocorrenciasEmAberto(estado, id)) {
+      if (o.competencia < d.inicio || (d.fim !== null && o.competencia > d.fim)) {
+        eventos.push(novoEvento(ctx, 'alterar', 'despesa', o.id, { excluida: true }));
+        continue;
+      }
+      const m = mudancasNaOcorrencia(estado, o, antiga, d);
+      if (Object.keys(m).length === 0) continue;
+      const res = alterarDespesa(estado, o.id, m, ctx);
+      if (res.ok) eventos.push(...res.eventos);
+    }
+  }
+
+  const nova: Recorrente = { ...antiga, ...d, descricao: d.descricao.trim(), valor: d.tipoValor === 'fixo' ? d.valor : 0 };
+  eventos.push(...eventosDeOcorrencias(estado, [nova], competenciaDaData(ctx.hoje), ctx));
+  return sucesso(eventos);
 }
 
 /** Pausar: para de gerar. Retomar: volta a gerar a partir do mês corrente (sem "atrasados"). */

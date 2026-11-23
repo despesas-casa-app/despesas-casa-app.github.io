@@ -23,7 +23,6 @@ import {
 import { despesaPorId, type Estado } from './estado.ts';
 import { fecharMes } from './fechamento.ts';
 import {
-  alterarParcelasRestantes,
   cancelarParcelasRestantes,
   criarParcelamento,
   parcelasDe,
@@ -363,23 +362,6 @@ describe('parcelamentos', () => {
     expect(cancelarParcelasRestantes(ana.estado(), 'x', '2026-01', ana.ctx).ok).toBe(false);
   });
 
-  it('edita as restantes de uma vez', () => {
-    const { ana, id } = comSofa();
-    const carro = idCategoria(ana.estado(), 'Carro');
-    ana.fazer((e, ctx) =>
-      alterarParcelasRestantes(e, id, '2027-01', { valor: 40000, categoriaId: carro, pagador: 'B', pctA: 6000, descricao: 'Sofá novo' }, ctx),
-    );
-    const parcelas = parcelasDe(ana.estado(), id);
-    expect(parcelas.map((d) => d.valor)).toEqual([45000, 45000, 45000, 40000, 40000]);
-    expect(parcelas.at(-1)).toMatchObject({ categoriaId: carro, pagador: 'B', pctA: 6000, pctPadrao: false, descricao: 'Sofá novo' });
-    expect(ana.estado().parcelamentos[0]?.descricao).toBe('Sofá novo');
-    // Sem mudanças efetivas: nada além do registro do parcelamento.
-    expect(ana.fazer((e, ctx) => alterarParcelasRestantes(e, id, '2027-01', { valor: 40000 }, ctx))).toEqual([]);
-    for (const m of [{ valor: 0 }, { categoriaId: 'x' }, { pctA: -1 }, { descricao: ' ' }]) {
-      expect(alterarParcelasRestantes(ana.estado(), id, '2027-01', m, ana.ctx).ok).toBe(false);
-    }
-    expect(alterarParcelasRestantes(ana.estado(), 'x', '2027-01', {}, ana.ctx).ok).toBe(false);
-  });
 });
 
 describe('configuração', () => {

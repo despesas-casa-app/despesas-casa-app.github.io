@@ -777,6 +777,29 @@ h2 {
   background: var(--superficie-2);
 }
 
+/* Caixa de marcar com texto ao lado (ex.: "Atualizar também as já lançadas"). */
+.marcar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.marcar input {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--marca-forte);
+}
+
+.marcar small {
+  display: block;
+  font-weight: 400;
+  color: var(--texto-suave);
+}
+
 .sugestoes {
   list-style: none;
   margin: 0;
