@@ -5,47 +5,16 @@ import { decifrarEvento } from '../cripto/conteudo.ts';
 import { fraseCanonica, validarFrase } from '../cripto/frase.ts';
 import type { Evento } from '../dominio/eventos.ts';
 import { lerEstado, type Estado } from '../dominio/estado.ts';
+import { lerCsv } from '../dominio/csv.ts';
 import { csvAcertos, csvDespesas } from '../dominio/exportacao.ts';
+
+export { lerCsv };
 import { projetar } from '../dominio/projecao.ts';
 
 /**
  * Recuperação (especificação 10): a partir dos CSVs das abas "meta" e "eventos" baixados do Drive
  * e da frase-mestra, remonta tudo e gera os CSVs legíveis. Roda inteiro no navegador, sem rede.
  */
-
-/** Lê CSV no padrão do Google Planilhas (vírgula, aspas, quebras de linha dentro de aspas). */
-export function lerCsv(texto: string): string[][] {
-  const linhas: string[][] = [];
-  let linha: string[] = [];
-  let celula = '';
-  let entreAspas = false;
-  const t = texto.replace(/^\uFEFF/, '');
-  for (let i = 0; i < t.length; i++) {
-    const c = t.charAt(i);
-    if (entreAspas) {
-      if (c === '"' && t[i + 1] === '"') {
-        celula += '"';
-        i++;
-      } else if (c === '"') entreAspas = false;
-      else celula += c;
-    } else if (c === '"') entreAspas = true;
-    else if (c === ',') {
-      linha.push(celula);
-      celula = '';
-    } else if (c === '\n' || c === '\r') {
-      if (c === '\r' && t[i + 1] === '\n') i++;
-      linha.push(celula);
-      linhas.push(linha);
-      linha = [];
-      celula = '';
-    } else celula += c;
-  }
-  if (celula !== '' || linha.length > 0) {
-    linha.push(celula);
-    linhas.push(linha);
-  }
-  return linhas.filter((l) => l.some((x) => x !== ''));
-}
 
 export type TipoArquivo = 'meta' | 'eventos' | 'desconhecido';
 

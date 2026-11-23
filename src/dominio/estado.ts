@@ -37,6 +37,8 @@ export interface Categoria {
 
 export type Origem =
   | { readonly tipo: 'manual' }
+  /** Trazida de outro app (Tricount). Ensina as sugestões como uma lançada à mão. */
+  | { readonly tipo: 'importada' }
   | { readonly tipo: 'recorrente'; readonly id: string }
   | { readonly tipo: 'parcela'; readonly id: string; readonly k: number; readonly n: number };
 
@@ -181,6 +183,7 @@ function lerCategoria(r: Registro): Categoria {
 
 function lerOrigem(c: C): Origem {
   const tipo = texto(c, 'origemTipo', 'manual');
+  if (tipo === 'importada') return { tipo };
   const id = texto(c, 'origemId');
   if (tipo === 'recorrente' && id) return { tipo, id };
   if (tipo === 'parcela' && id) return { tipo, id, k: inteiro(c, 'parcelaK', 1), n: inteiro(c, 'parcelaN', 1) };

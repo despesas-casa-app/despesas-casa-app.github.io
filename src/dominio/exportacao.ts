@@ -40,6 +40,8 @@ function origemTexto(d: Despesa): string {
   switch (d.origem.tipo) {
     case 'manual':
       return 'avulsa';
+    case 'importada':
+      return 'importada';
     case 'recorrente':
       return 'recorrente';
     case 'parcela':

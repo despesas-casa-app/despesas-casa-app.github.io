@@ -126,9 +126,9 @@ function contar<K, V extends Contagem>(mapa: Map<K, V>, chave: K, data: string, 
   }
 }
 
-/** Só o que foi digitado à mão ensina: parcelas e recorrentes são lançadas sozinhas. */
+/** Ensinam as lançadas à mão e as importadas; parcelas e recorrentes são lançadas sozinhas. */
 function ensinam(despesas: readonly Despesa[]): Despesa[] {
-  return despesas.filter((d) => !d.excluida && d.origem.tipo === 'manual');
+  return despesas.filter((d) => !d.excluida && (d.origem.tipo === 'manual' || d.origem.tipo === 'importada'));
 }
 
 function dataMaisRecente(despesas: readonly Despesa[]): DataISO {
