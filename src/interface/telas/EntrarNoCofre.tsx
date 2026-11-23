@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { MetaCofre } from '../../aplicacao/cofre.ts';
 import { Cabecalho } from '../componentes/Basicos.tsx';
 import { CampoFrase } from '../seguranca/CampoFrase.tsx';
@@ -22,6 +22,11 @@ export function EntrarNoCofre({ aoCancelar }: { aoCancelar: () => void }) {
   const [planilha, setPlanilha] = useState<{ id: string; nome: string; meta: MetaCofre } | null>(null);
   const [frase, setFrase] = useState('');
   const dek = useRef<CryptoKey | null>(null);
+
+  // Carrega o login do Google antes: o toque precisa abrir a janela do Google na hora.
+  useEffect(() => {
+    remoto?.preparar().catch(() => undefined);
+  }, [remoto]);
 
   if (!remoto) {
     return (

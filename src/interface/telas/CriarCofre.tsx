@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { gerarDek } from '../../cripto/chaves.ts';
 import { gerarFrase, reconhecerPalavra } from '../../cripto/frase.ts';
 import { ehEmailValido, normalizarEmail } from '../../dominio/config.ts';
@@ -47,6 +47,11 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
   const [ocupado, setOcupado] = useState(false);
   const dekPronta = useMemo(() => gerarDek(), []);
   const remoto = sessao.remoto;
+
+  // Carrega o login do Google antes: o toque em "Entrar com o Google" precisa abrir a janela na hora.
+  useEffect(() => {
+    remoto?.preparar().catch(() => undefined);
+  }, [remoto]);
 
   const entrarNoGoogle = (): void => {
     if (!remoto) return;
