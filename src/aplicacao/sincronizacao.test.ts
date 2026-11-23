@@ -101,8 +101,12 @@ describe('sincronização entre dois celulares', () => {
     expect(bruno.loja.obterFoto().estado.categorias).toHaveLength(13);
     expect(ana.sync.obter().tipo).toBe('sincronizado');
     expect(ana.sync.pendentes()).toEqual([]);
-    const bruto = JSON.stringify((await remoto.base.lerAPartirDe(0)).linhas);
-    for (const palavra of ['Ana', 'Bruno', 'Moradia', 'Gatinhos']) expect(bruto).not.toContain(palavra);
+    const linhas = (await remoto.base.lerAPartirDe(0)).linhas;
+    const bruto = JSON.stringify(linhas);
+    for (const palavra of ['Bruno', 'Moradia', 'Gatinhos']) expect(bruto).not.toContain(palavra);
+    // "Ana" é curto demais para procurar (aparece por acaso no base64 aleatório): confere que o
+    // conteúdo de cada linha é só base64, ou seja, nada em texto aberto.
+    for (const l of linhas) expect(l.conteudo).toMatch(/^[A-Za-z0-9+/]+=*$/);
   });
 
   it('lançamentos offline nos dois celulares chegam aos dois quando voltam a conexão', async () => {
