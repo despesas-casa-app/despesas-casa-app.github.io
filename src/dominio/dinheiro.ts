@@ -32,3 +32,27 @@ export function formatarReais(centavos: Centavos): string {
   const texto = `R$${ESPACO_FIXO}${reaisComPontos},${String(resto).padStart(2, '0')}`;
   return negativo ? `-${texto}` : texto;
 }
+
+/**
+ * Lê um valor digitado no padrão brasileiro: "1.234,56", "1234,5", "R$ 12", "-3,00".
+ * Ponto é separador de milhar; vírgula separa os centavos. Inválido → null.
+ */
+export function lerReais(texto: string): Centavos | null {
+  // "\s" já inclui o espaço fixo (NBSP) que o formatarReais usa.
+  const limpo = texto.replace(/R\$/i, '').replace(/\s/g, '');
+  const m = /^(-?)(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/.exec(limpo);
+  if (!m) return null;
+  const reais = Number((m[2] ?? '').replaceAll('.', ''));
+  const centavos = Number((m[3] ?? '').padEnd(2, '0'));
+  const valor = reais * 100 + centavos;
+  if (!ehCentavosValidos(valor)) return null;
+  return m[1] === '-' ? -valor : valor;
+}
+
+/** Soma uma lista de centavos. */
+export function somar(valores: readonly Centavos[]): Centavos {
+  let total = 0;
+  for (const v of valores) total += v;
+  exigirCentavos(total);
+  return total;
+}

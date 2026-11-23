@@ -10,7 +10,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/dominio/**', 'src/cripto/**'],
-      exclude: ['**/*.test.ts', '**/README.md'],
+      exclude: ['**/*.test.ts', '**/README.md', 'src/dominio/testes/**'],
       // O núcleo de domínio e a criptografia precisam de cobertura alta.
       thresholds: {
         lines: 95,

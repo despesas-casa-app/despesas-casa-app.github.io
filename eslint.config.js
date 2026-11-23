@@ -51,6 +51,14 @@ export default tseslint.config(
     },
   },
   {
+    // Nos testes, atalhos comuns são aceitos (não afetam o app publicado).
+    files: ['**/*.test.{ts,tsx}', 'src/**/testes/**'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
+    },
+  },
+  {
     files: ['**/*.{js,mjs}'],
     extends: [js.configs.recommended],
     languageOptions: {

@@ -19,6 +19,7 @@
     "verificar": "npm run verificar-segredos && npm run lint && npm run tipos && npm test"
   },
   "dependencies": {
+    "idb": "8.0.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"
   },
