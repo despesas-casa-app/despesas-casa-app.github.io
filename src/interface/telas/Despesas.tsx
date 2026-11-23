@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { formatarData, nomeDaCompetencia } from '../../dominio/competencia.ts';
+import { comMaiuscula, formatarData, nomeDoMes } from '../../dominio/competencia.ts';
 import { despesasDoMes, mesFechado, type Despesa } from '../../dominio/estado.ts';
+import { resumoDoMes } from '../../dominio/fechamento.ts';
+import { fraseDoSaldo } from '../../dominio/saldo.ts';
 import { LIVRO_CASA, type Pessoa } from '../../dominio/tipos.ts';
 import { Cabecalho, Reais, Segmentos, SeletorMes, Vazio } from '../componentes/Basicos.tsx';
 import { Icone } from '../componentes/Icone.tsx';
 import { ItemDespesa } from '../componentes/ItemDespesa.tsx';
 import { useFoto, useMes } from '../contexto.tsx';
+import { navegar } from '../rotas.ts';
 
 const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
 
@@ -27,17 +30,27 @@ export function Despesas() {
   const total = filtradas.reduce((s, d) => s + (d.status === 'normal' ? d.valor : 0), 0);
   const porDia = new Map<string, Despesa[]>();
   for (const d of filtradas) porDia.set(d.data, [...(porDia.get(d.data) ?? []), d]);
+  const fechado = mesFechado(estado, LIVRO_CASA, mes);
   const categoriasDoMes = estado.categorias.filter((c) => todas.some((d) => d.categoriaId === c.id));
 
   return (
     <main className="tela">
       <Cabecalho titulo="Despesas do mês" />
       <SeletorMes mes={mes} aoMudar={definirMes} />
-      {mesFechado(estado, LIVRO_CASA, mes) && (
-        <p className="faixa faixa-info">
-          <Icone nome="cadeado" tamanho={16} /> {nomeDaCompetencia(mes)} já foi acertado.
-        </p>
-      )}
+
+      {/* Atalho para o acerto do mês, no mesmo formato dos itens do menu "Mais". */}
+      <button type="button" className="atalho" onClick={() => { navegar({ tela: 'acertar' }); }}>
+        <span className="menu-icone">
+          <Icone nome={fechado ? 'cadeado' : 'acerto'} />
+        </span>
+        <span className="item-texto">
+          <span className="item-titulo">{fechado ? `${comMaiuscula(nomeDoMes(mes))} já foi acertado` : 'Acertar contas'}</span>
+          <span className="item-detalhe">
+            {fechado ? 'Ver o resumo do acerto' : fraseDoSaldo(resumoDoMes(estado, LIVRO_CASA, mes).transferencia, estado.config)}
+          </span>
+        </span>
+        <Icone nome="direita" tamanho={18} />
+      </button>
 
       <div className="filtros">
         <label className="filtro-categoria">
