@@ -1,0 +1,45 @@
+# ============================================================
+# Dados privados — NUNCA versionar (especificação 5.6)
+# ============================================================
+privado/
+*.csv
+*.tsv
+*.xlsx
+*.xls
+*.ods
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.kdbx
+client_secret*.json
+credentials*.json
+service-account*.json
+*.backup
+*.bak
+
+# ============================================================
+# Gerados automaticamente
+# ============================================================
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# ============================================================
+# Ferramentas e sistema
+# ============================================================
+.claude/settings.local.json
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+npm-debug.log*
