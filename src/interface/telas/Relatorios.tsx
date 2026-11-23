@@ -86,7 +86,7 @@ export function Relatorios() {
           </thead>
           <tbody>
             {(['A', 'B'] as const).map((p) => {
-              const saldo = resumo.pagoPor[p] - resumo.cotaDe[p];
+              const saldo = p === 'A' ? resumo.saldoA : -resumo.saldoA;
               return (
                 <tr key={p}>
                   <th scope="row">{p === 'A' ? nomeA : nomeB}</th>
@@ -100,7 +100,10 @@ export function Relatorios() {
             })}
           </tbody>
         </table>
-        <p className="ajuda">Saldo = o que pagou − a parte dele(a) nas despesas. Positivo: tem a receber.</p>
+        <p className="ajuda">
+          Saldo = o que pagou − a parte dele(a) nas despesas. Positivo: tem a receber.
+          {resumo.totalJaAcertado > 0 && ' Já desconta o que foi acertado no Tricount.'}
+        </p>
       </section>
     </main>
   );

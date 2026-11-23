@@ -5,7 +5,7 @@ import { nomeDe } from '../../dominio/estado.ts';
 import { AcoesJanela, Janela } from '../componentes/Basicos.tsx';
 import { Icone } from '../componentes/Icone.tsx';
 import { useAvisar, useFoto } from '../contexto.tsx';
-import { useSessao } from '../sessaoContexto.tsx';
+import { useSessao, useSincronizador } from '../sessaoContexto.tsx';
 import { CampoFrase } from './CampoFrase.tsx';
 import { ConfigurarDesbloqueio } from './ConfigurarDesbloqueio.tsx';
 
@@ -15,6 +15,7 @@ type PassoFrase = 'atual' | 'nova' | 'conferir';
 /** Configurações → Segurança (modo real): bloquear, desbloqueio, trocar a frase, apagar o aparelho. */
 export function SecaoSeguranca() {
   const sessao = useSessao();
+  const sync = useSincronizador();
   const { estado, euSou } = useFoto();
   const avisar = useAvisar();
   const [metodo, setMetodo] = useState<MetodoDesbloqueio | null>(null);
@@ -172,10 +173,18 @@ export function SecaoSeguranca() {
             e.preventDefault();
             if (textoApagar.trim().toUpperCase() === 'APAGAR') void sessao.apagarDadosDoAparelho();
           }}>
-            <p>
-              Apaga o cofre, a digital/PIN e todas as despesas guardadas <strong>neste celular</strong>. Enquanto não houver
-              sincronização com o Google (próxima etapa), isso <strong>não tem volta</strong>.
-            </p>
+            {sync ? (
+              <p>
+                Apaga o cofre, a digital/PIN e as despesas guardadas <strong>neste celular</strong>. A planilha do Google continua
+                com tudo: para voltar, toque em &ldquo;Já temos um cofre: entrar&rdquo; e use a frase-mestra.{' '}
+                <strong>Isso não desfaz nada</strong> — o que está na planilha volta igual.
+              </p>
+            ) : (
+              <p>
+                Apaga o cofre, a digital/PIN e todas as despesas guardadas <strong>neste celular</strong>. Este cofre não está
+                ligado ao Google, então isso <strong>não tem volta</strong>.
+              </p>
+            )}
             <div className="campo">
               <label htmlFor="confirmar-apagar">Para confirmar, digite APAGAR</label>
               <input id="confirmar-apagar" type="text" autoComplete="off" value={textoApagar} onChange={(e) => { setTextoApagar(e.target.value); }} />

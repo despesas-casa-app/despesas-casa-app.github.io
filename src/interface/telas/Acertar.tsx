@@ -73,7 +73,13 @@ export function Acertar() {
               <div><dt>Parte de {config.nomeA}</dt><dd><Reais centavos={resumo.cotaDe.A} /></dd></div>
               <div><dt>{config.nomeB} pagou</dt><dd><Reais centavos={resumo.pagoPor.B} /></dd></div>
               <div><dt>Parte de {config.nomeB}</dt><dd><Reais centavos={resumo.cotaDe.B} /></dd></div>
+              {resumo.totalJaAcertado > 0 && (
+                <div><dt>Já acertado no Tricount</dt><dd><Reais centavos={resumo.totalJaAcertado} /></dd></div>
+              )}
             </dl>
+            {resumo.totalJaAcertado > 0 && (
+              <p className="ajuda">As despesas já acertadas no Tricount contam no total, mas não na transferência.</p>
+            )}
           </section>
 
           {resumo.aguardando.length > 0 && (

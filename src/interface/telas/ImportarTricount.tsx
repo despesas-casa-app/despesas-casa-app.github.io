@@ -1,10 +1,11 @@
 import { useMemo, useState, type ChangeEvent } from 'react';
-import { comMaiuscula, nomeDaCompetencia } from '../../dominio/competencia.ts';
+import { comMaiuscula, formatarData, nomeDaCompetencia } from '../../dominio/competencia.ts';
 import { formatarReais } from '../../dominio/dinheiro.ts';
 import {
   analisarTricount,
   ErroImportacao,
   gerarEventosImportacao,
+  mudancasDoPlano,
   planejarImportacao,
   sugerirCategorias,
   type AnaliseTricount,
@@ -69,7 +70,7 @@ export function ImportarTricount() {
       setErro(r.erro === 'invalido' ? r.mensagem : 'Não foi possível importar.');
       return;
     }
-    avisar('Histórico do Tricount importado');
+    avisar(plano.substitui ? 'Importação do Tricount corrigida' : 'Histórico do Tricount importado');
     navegar({ tela: 'inicio' });
   };
 
@@ -84,7 +85,7 @@ export function ImportarTricount() {
     );
   }
 
-  const quantas = plano && typeof plano !== 'string' ? plano.despesas.length + (plano.ajuste ? 1 : 0) : 0;
+  const mudancas = plano && typeof plano !== 'string' ? mudancasDoPlano(plano) : 0;
 
   return (
     <main className="tela">
@@ -93,8 +94,8 @@ export function ImportarTricount() {
       <section className="secao cartao">
         <h2>1. Escolha o arquivo</h2>
         <p className="ajuda">
-          Use o CSV exportado do Tricount. Ele é lido só neste celular: nada é enviado para fora. Se importar o mesmo
-          arquivo de novo, nada é duplicado.
+          Use o CSV exportado do Tricount. Ele é lido só neste celular: nada é enviado para fora. Se importar de novo,
+          nada é duplicado: o app só corrige o que estiver diferente.
         </p>
         <label className="botao botao-principal">
           {analise ? 'Escolher outro arquivo' : 'Escolher o arquivo'}
@@ -168,13 +169,47 @@ export function ImportarTricount() {
       {plano && typeof plano !== 'string' && (
         <section className="secao cartao">
           <h2>4. Prévia</h2>
-          <p className="ajuda">
-            Os meses anteriores a {nomeDaCompetencia(mesDeHoje())} entram como <strong>acertados</strong> (já foram resolvidos
-            no Tricount). O que ainda está em aberto no Tricount entra como &ldquo;Saldo pendente do Tricount&rdquo; neste mês.
-          </p>
+          {plano.ultimoAcerto ? (
+            <p className="ajuda">
+              O último acerto feito no Tricount foi em <strong>{formatarData(plano.ultimoAcerto)}</strong>. Tudo o que veio antes
+              entra como <strong>acertado</strong>: os meses que já estavam todos acertados ficam fechados (🔒) e as outras despesas
+              acertadas aparecem marcadas, contando no total mas não no saldo. {plano.emAberto === 1 ? 'Fica' : 'Ficam'} em aberto{' '}
+              <strong>{contar(plano.emAberto, 'despesa', 'despesas')}</strong>.
+            </p>
+          ) : (
+            <p className="ajuda">Não achei nenhum acerto no Tricount: todas as despesas entram em aberto.</p>
+          )}
           <p>
-            No fim do Tricount: <strong>{fraseDoSaldo(transferenciaDoSaldo(plano.saldoFinalA), estado.config)}</strong>
+            Em aberto: <strong>{fraseDoSaldo(transferenciaDoSaldo(plano.saldoFinalA - plano.residuoA), estado.config)}</strong>
           </p>
+          {plano.residuoA !== 0 && (
+            <p className="ajuda">
+              {formatarReais(Math.abs(plano.residuoA))} de arredondamento que sobraram no último acerto do Tricount ficam de fora.
+            </p>
+          )}
+          {plano.ajuste && (
+            <p className="ajuda">
+              Também entra o lançamento &ldquo;Saldo pendente do Tricount&rdquo; ({formatarReais(plano.ajuste.dados.valor)}), com os
+              reembolsos e pagamentos feitos no Tricount depois do último acerto, para o saldo bater.
+            </p>
+          )}
+          {plano.substitui && (
+            <p className="faixa">
+              <span>
+                Você já tinha importado antes. Esta importação <strong>corrige a anterior</strong>:{' '}
+                {[
+                  plano.despesas.length > 0 ? contar(plano.despesas.length, 'despesa nova', 'despesas novas') : '',
+                  plano.corrigir.length > 0 ? contar(plano.corrigir.length, 'despesa corrigida (inclui as apagadas)', 'despesas corrigidas (inclui as apagadas)') : '',
+                  plano.remover.length > 0 ? contar(plano.remover.length, 'lançamento removido', 'lançamentos removidos') : '',
+                  plano.mesesReabrir.length > 0 ? contar(plano.mesesReabrir.length, 'mês reaberto', 'meses reabertos') : '',
+                  plano.mesesFechar.length > 0 ? contar(plano.mesesFechar.length, 'mês fechado', 'meses fechados') : '',
+                ]
+                  .filter(Boolean)
+                  .join(', ') || 'nada a mudar'}
+                .
+              </span>
+            </p>
+          )}
           {plano.divididas > 0 && (
             <p className="ajuda">
               {contar(plano.divididas, 'despesa paga pelos dois virou duas', 'despesas pagas pelos dois viraram duas cada')} (uma
@@ -182,7 +217,7 @@ export function ImportarTricount() {
             </p>
           )}
           {plano.jaImportadas > 0 && (
-            <p className="ajuda">{contar(plano.jaImportadas, 'despesa já tinha sido importada e fica de fora', 'despesas já tinham sido importadas e ficam de fora')}.</p>
+            <p className="ajuda">{contar(plano.jaImportadas, 'despesa já está certa no app e fica como está', 'despesas já estão certas no app e ficam como estão')}.</p>
           )}
           {plano.mesesJaFechados.length > 0 && (
             <p className="erro">
@@ -196,6 +231,7 @@ export function ImportarTricount() {
                 <tr>
                   <th scope="col">Mês</th>
                   <th scope="col">Despesas</th>
+                  <th scope="col">Em aberto</th>
                   <th scope="col">Total</th>
                 </tr>
               </thead>
@@ -207,28 +243,41 @@ export function ImportarTricount() {
                       {m.fechado ? ' 🔒' : ''}
                     </th>
                     <td>{m.quantidade}</td>
+                    <td>{m.fechado ? '—' : m.emAberto}</td>
                     <td>{formatarReais(m.total)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           )}
-          <button type="button" className="botao botao-principal" disabled={quantas === 0} onClick={() => { setConfirmar(true); }}>
-            {quantas === 0 ? 'Nada novo para importar' : `Importar ${String(quantas)} ${quantas === 1 ? 'lançamento' : 'lançamentos'}`}
+          <button type="button" className="botao botao-principal" disabled={mudancas === 0} onClick={() => { setConfirmar(true); }}>
+            {mudancas === 0
+              ? 'Nada novo para importar'
+              : plano.substitui
+                ? 'Corrigir a importação'
+                : `Importar ${contar(plano.despesas.length, 'lançamento', 'lançamentos')}`}
           </button>
         </section>
       )}
 
-      <Janela aberta={confirmar} titulo="Importar o histórico?" aoFechar={() => { setConfirmar(false); }}>
+      <Janela
+        aberta={confirmar}
+        titulo={plano && typeof plano !== 'string' && plano.substitui ? 'Corrigir a importação?' : 'Importar o histórico?'}
+        aoFechar={() => { setConfirmar(false); }}
+      >
         {plano && typeof plano !== 'string' && (
           <p>
-            Vão entrar {contar(quantas, 'lançamento', 'lançamentos')} e {contar(plano.mesesFechar.length, 'mês acertado', 'meses acertados')}.
+            {plano.substitui
+              ? `A importação anterior vai ser corrigida (${contar(mudancas, 'mudança', 'mudanças')}).`
+              : `Vão entrar ${contar(plano.despesas.length, 'lançamento', 'lançamentos')} e ${contar(plano.mesesFechar.length, 'mês acertado', 'meses acertados')}.`}
             {sync ? ' Isso vai para o outro celular na próxima sincronização.' : ''}
           </p>
         )}
         <AcoesJanela>
           <button type="button" className="botao" onClick={() => { setConfirmar(false); }}>Cancelar</button>
-          <button type="button" className="botao botao-principal" onClick={importar}>Importar</button>
+          <button type="button" className="botao botao-principal" onClick={importar}>
+            {plano && typeof plano !== 'string' && plano.substitui ? 'Corrigir' : 'Importar'}
+          </button>
         </AcoesJanela>
       </Janela>
     </main>

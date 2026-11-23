@@ -18,6 +18,13 @@ export interface ResumoMes {
   readonly totalGasto: Centavos;
   readonly pagoPor: Readonly<Record<Pessoa, Centavos>>;
   readonly cotaDe: Readonly<Record<Pessoa, Centavos>>;
+  /**
+   * Parte do saldo que já foi acertada no Tricount (despesas importadas marcadas como acertadas).
+   * Já está descontada do saldoA. Zero fora do mês da importação.
+   */
+  readonly jaAcertadoA: Centavos;
+  /** Total das despesas já acertadas no Tricount (estão dentro do totalGasto). */
+  readonly totalJaAcertado: Centavos;
   /** Positivo: A tem a receber. Negativo: A deve. (O saldo de B é o oposto.) */
   readonly saldoA: Centavos;
   readonly transferencia: Transferencia | null;
@@ -39,6 +46,8 @@ export function resumirMes(competencia: Competencia, despesas: readonly Despesa[
   const pagoPor = { A: 0, B: 0 };
   const cotaDe = { A: 0, B: 0 };
   let totalGasto = 0;
+  let jaAcertadoA = 0;
+  let totalJaAcertado = 0;
 
   for (const d of despesas) {
     if (d.excluida || d.competencia !== competencia) continue;
@@ -52,9 +61,13 @@ export function resumirMes(competencia: Competencia, despesas: readonly Despesa[
     pagoPor[d.pagador] += d.valor;
     cotaDe.A += cotas.A;
     cotaDe.B += cotas.B;
+    if (d.origem.tipo === 'importada' && d.origem.acertada) {
+      jaAcertadoA += (d.pagador === 'A' ? d.valor : 0) - cotas.A;
+      totalJaAcertado += d.valor;
+    }
   }
 
-  const saldoA = pagoPor.A - cotaDe.A;
+  const saldoA = pagoPor.A - cotaDe.A - jaAcertadoA;
   return {
     competencia,
     contadas,
@@ -62,6 +75,8 @@ export function resumirMes(competencia: Competencia, despesas: readonly Despesa[
     totalGasto,
     pagoPor,
     cotaDe,
+    jaAcertadoA,
+    totalJaAcertado,
     saldoA,
     transferencia: transferenciaDoSaldo(saldoA),
   };

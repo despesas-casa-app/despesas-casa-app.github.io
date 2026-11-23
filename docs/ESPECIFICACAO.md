@@ -267,7 +267,9 @@ categorias. Depois disso, cada categoria é editada individualmente.
     biometria/PIN configurados, o app pede para configurar um dos dois;
   - **trocar a frase exige a frase atual** (um celular desbloqueado nas mãos de outra pessoa não
     basta para trocá-la);
-  - "Apagar os dados deste celular" (Configurações → Segurança) exige digitar APAGAR;
+  - "Apagar os dados deste celular" (Configurações → Segurança) exige digitar APAGAR. O aviso diz a
+    verdade conforme o caso: sem Google, não tem volta; com Google, a planilha guarda tudo, então
+    apagar o celular **não desfaz nada** (ao entrar de novo, volta igual);
   - o modo demonstração usa um banco separado, sem criptografia e só com dados fictícios. Ele é
     escolhido na tela de boas-vindas e nunca se mistura com os dados reais.
 
@@ -419,13 +421,27 @@ categorias. Depois disso, cada categoria é editada individualmente.
   mês, quais meses entram acertados e o saldo final do Tricount.
 - **Cada despesa** vira uma despesa do app com origem "importada", com o % calculado pelas partes
   (2 casas). Se as duas pessoas pagaram a mesma despesa, ela vira duas (uma por quem pagou).
-- **Meses anteriores ao mês corrente** entram **fechados** (um acerto por mês, marcado como "trazido
-  do Tricount", sem inventar transferência). As transferências do Tricount não viram despesas: elas
-  entram só na conta do saldo.
-- **Saldo pendente:** o que ainda estava em aberto no fim do Tricount entra como a despesa
-  "Saldo pendente do Tricount" no mês corrente, para o saldo do app ficar **igual** ao do Tricount.
+- **Acertos do Tricount (regra revista em nov/2026):** no Tricount, os acertos não caem no fim do
+  mês. Cada **transferência que deixa o saldo (quase) zerado** (sobra menos de R$ 1) é um acerto.
+  Tudo até o **último acerto** já foi resolvido; só o que veio depois fica em aberto. A ordem é a
+  da data e, no mesmo dia, a do arquivo (o Tricount exporta do mais novo para o mais antigo).
+  - Meses anteriores ao mês corrente em que tudo já foi acertado entram **fechados** (um acerto por
+    mês, marcado como "trazido do Tricount", sem inventar transferência).
+  - Nos meses que ficam abertos, as despesas anteriores ao último acerto entram marcadas como
+    **"já acertada no Tricount"**: contam no total do mês e nos relatórios, mas **não no saldo**.
+    O cartão do mês e a tela de acerto avisam quanto já foi acertado.
+  - Os centavos de arredondamento que o último acerto deixou ficam de fora (a prévia mostra quanto).
+  - As transferências do Tricount não viram despesas.
+- **Saldo pendente:** só aparece se o Tricount tiver, depois do último acerto, algo que não é
+  despesa (reembolsos ou pagamentos parciais). Entra como "Saldo pendente do Tricount" no mês
+  corrente, para o saldo bater.
 - **Sem duplicar:** os ids são calculados a partir do conteúdo de cada linha; importar o mesmo
   arquivo de novo não cria nada.
+- **Importar de novo corrige:** se já houve uma importação, a prévia avisa e a nova importação
+  **substitui** a anterior: volta as despesas importadas que foram apagadas, ajusta as que estão
+  diferentes (inclusive a marca de acertada), tira as importadas que não estão no arquivo (como um
+  "Saldo pendente" antigo), reabre meses que a importação anterior fechou sem dever e fecha os que
+  faltam. No histórico, a correção aparece numa linha só. Não há botão separado para isso.
 - No histórico de atividade, a importação aparece numa linha só.
 - Só no cofre real (não na demonstração, que não é criptografada).
 

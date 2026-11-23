@@ -71,6 +71,11 @@ export function Inicio() {
             <dd><Reais centavos={resumo.pagoPor.B} /></dd>
           </div>
         </dl>
+        {!fechado && resumo.totalJaAcertado > 0 && (
+          <p className="saldo-nota">
+            {formatarReais(resumo.totalJaAcertado)} deste mês já foram acertados no Tricount e não entram no saldo.
+          </p>
+        )}
         {!fechado && (
           <button type="button" className="botao botao-secundario" onClick={() => { navegar({ tela: 'acertar' }); }}>
             <Icone nome="acerto" tamanho={18} /> Acertar contas

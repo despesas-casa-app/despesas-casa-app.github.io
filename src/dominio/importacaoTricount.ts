@@ -5,7 +5,17 @@ import { camposNovaDespesa, type DadosDespesa } from './despesas.ts';
 import type { Centavos } from './dinheiro.ts';
 import { dividir } from './divisao.ts';
 import type { Evento } from './eventos.ts';
-import { categoriaPorId, lerEstado, mesFechado, type Categoria, type Estado } from './estado.ts';
+import {
+  categoriaPorId,
+  fechamentoDe,
+  idFechamento,
+  lerEstado,
+  mesFechado,
+  type Categoria,
+  type Despesa,
+  type Estado,
+  type Origem,
+} from './estado.ts';
 import { fecharMes } from './fechamento.ts';
 import { CEM_POR_CENTO, METADE } from './percentual.ts';
 import { projetar } from './projecao.ts';
@@ -24,10 +34,10 @@ import { LIVRO_CASA, type Competencia, type DataISO, type Pessoa, type PontosBas
  * - cada despesa vira uma despesa do app, com o % calculado a partir das partes;
  * - se as duas pessoas pagaram uma mesma despesa, ela vira duas (uma por quem pagou), mantendo o
  *   saldo exato;
- * - os meses ANTERIORES ao mês corrente entram fechados (os acertos do Tricount viram fechamentos);
- * - o que ainda está em aberto no fim do Tricount entra como "Saldo pendente do Tricount" no mês
- *   corrente, para o saldo do app ficar igual ao do Tricount;
- * - ids determinísticos: importar o mesmo arquivo de novo não duplica nada.
+ * - cada transferência que deixa o saldo (quase) zerado é um acerto; tudo até o ÚLTIMO acerto já foi
+ *   resolvido e só o que veio depois fica em aberto (ver planejarImportacao);
+ * - ids determinísticos: importar o mesmo arquivo de novo não duplica nada; se a importação anterior
+ *   estiver diferente (ou foi mexida), a nova a corrige.
  */
 
 const MESES = [
@@ -204,7 +214,7 @@ export interface OpcoesImportacao {
   readonly pessoaDe: Readonly<Record<string, Pessoa>>;
   /** Categoria do Tricount → id da categoria no app. */
   readonly categoriaDe: Readonly<Record<string, string>>;
-  /** Mês corrente: os anteriores entram fechados. */
+  /** Mês corrente: os anteriores, se tudo neles já foi acertado, entram fechados. */
   readonly mesCorrente: Competencia;
   /** Data de hoje (para o lançamento do saldo pendente). */
   readonly hoje: DataISO;
@@ -213,31 +223,59 @@ export interface OpcoesImportacao {
 export interface DespesaPlanejada {
   readonly id: string;
   readonly dados: DadosDespesa;
+  /** Já acertada no Tricount, num mês que fica aberto no app: conta no total, não no saldo. */
+  readonly acertada: boolean;
 }
 
 export interface ResumoMesImportado {
   readonly competencia: Competencia;
   readonly quantidade: number;
   readonly total: Centavos;
+  /** Despesas do mês que ainda não tinham sido acertadas no Tricount. */
+  readonly emAberto: number;
+  /** O mês fica fechado no app (tudo nele já foi acertado no Tricount). */
   readonly fechado: boolean;
 }
 
 export interface PlanoImportacao {
+  /** Despesas novas (ainda não existem no app), já com o eventual ajuste. */
   readonly despesas: readonly DespesaPlanejada[];
+  /** Despesas de uma importação anterior que mudam (voltam, se foram apagadas, ou trocam de situação). */
+  readonly corrigir: readonly DespesaPlanejada[];
+  /** Despesas de uma importação anterior que não fazem mais parte (ex.: um "Saldo pendente" antigo). */
+  readonly remover: readonly string[];
   readonly mesesFechar: readonly Competencia[];
-  /** Lançamento que acerta o saldo pendente (null se o Tricount terminou zerado). */
+  /** Meses fechados por uma importação anterior que agora ficam abertos. */
+  readonly mesesReabrir: readonly Competencia[];
+  /** Lançamento que acerta o que o Tricount tinha além das despesas em aberto (normalmente null). */
   readonly ajuste: DespesaPlanejada | null;
   /** Saldo final da Pessoa A no Tricount (positivo: A tem a receber). */
   readonly saldoFinalA: Centavos;
+  /** Data do último acerto feito no Tricount (null se nunca houve acerto). */
+  readonly ultimoAcerto: DataISO | null;
+  /** Centavos de arredondamento que o último acerto do Tricount deixou para trás (ficam de fora). */
+  readonly residuoA: Centavos;
+  /** Despesas do arquivo que ficam em aberto no app (depois do último acerto). */
+  readonly emAberto: number;
   readonly porMes: readonly ResumoMesImportado[];
   readonly transferencias: number;
   /** Despesas pagas pelas duas pessoas (divididas em duas). */
   readonly divididas: number;
-  /** Despesas que já existem no app (importadas antes) e serão puladas. */
+  /** Despesas que já estão no app exatamente como deveriam (ficam como estão). */
   readonly jaImportadas: number;
-  /** Meses passados que já estavam fechados no app e vão receber despesas importadas. */
+  /** Já houve uma importação antes: esta corrige e substitui a anterior. */
+  readonly substitui: boolean;
+  /** Meses que já tinham sido acertados no app (não pela importação) e vão receber despesas. */
   readonly mesesJaFechados: readonly Competencia[];
 }
+
+/** Quantas mudanças a importação faz no app (0 = nada a fazer). */
+export function mudancasDoPlano(p: PlanoImportacao): number {
+  return p.despesas.length + p.corrigir.length + p.remover.length + p.mesesFechar.length + p.mesesReabrir.length;
+}
+
+/** Saldo que sobra no Tricount abaixo deste valor depois de uma transferência = acerto feito. */
+const LIMITE_ACERTO: Centavos = 100;
 
 /** Hash de 53 bits (cyrb53), para ids determinísticos. */
 function hash(texto: string): string {
@@ -260,6 +298,41 @@ function pctDaPessoaA(parteA: Centavos, total: Centavos): PontosBase {
   return Math.min(CEM_POR_CENTO, Math.max(0, p));
 }
 
+/**
+ * Linhas em ordem cronológica. O Tricount exporta do mais novo para o mais antigo; dentro do
+ * mesmo dia, vale a ordem do arquivo (no sentido do arquivo).
+ */
+function ordemCronologica(linhas: readonly LinhaTricount[]): LinhaTricount[] {
+  const crescente = (linhas[0]?.data ?? '') < (linhas.at(-1)?.data ?? '');
+  return linhas
+    .map((l, i) => ({ l, i }))
+    .sort((a, b) => (a.l.data < b.l.data ? -1 : a.l.data > b.l.data ? 1 : crescente ? a.i - b.i : b.i - a.i))
+    .map((x) => x.l);
+}
+
+/** A despesa do app já está como a importação quer? */
+function jaEsta(atual: Despesa, d: DespesaPlanejada): boolean {
+  return (
+    !atual.excluida &&
+    atual.status === 'normal' &&
+    atual.origem.tipo === 'importada' &&
+    atual.origem.acertada === d.acertada &&
+    atual.valor === d.dados.valor &&
+    atual.competencia === d.dados.competencia &&
+    atual.pagador === d.dados.pagador &&
+    atual.pctA === d.dados.pctA
+  );
+}
+
+/**
+ * Monta a prévia. Regra dos acertos: no Tricount, cada transferência que deixa o saldo (quase)
+ * zerado é um acerto. Tudo até o ÚLTIMO acerto já foi resolvido; só o que veio depois fica em aberto.
+ * - meses anteriores ao corrente em que tudo já foi acertado entram fechados;
+ * - nos meses que ficam abertos, as despesas anteriores ao acerto entram marcadas como "acertada no
+ *   Tricount" (contam no total e nos relatórios, não no saldo);
+ * - se já houve uma importação, esta corrige a anterior (volta o que foi apagado, troca o que mudou,
+ *   tira o que não faz mais parte e reabre os meses que a anterior fechou sem dever).
+ */
 export function planejarImportacao(analise: AnaliseTricount, opcoes: OpcoesImportacao, estado: Estado): PlanoImportacao {
   const nomeDe = (p: Pessoa): string => {
     const nome = analise.pessoas.find((n) => opcoes.pessoaDe[n] === p);
@@ -268,17 +341,29 @@ export function planejarImportacao(analise: AnaliseTricount, opcoes: OpcoesImpor
   };
   const nomeA = nomeDe('A');
   const nomeB = nomeDe('B');
-  const existentes = new Set(estado.despesas.map((d) => d.id));
-  const vistas = new Map<string, number>();
-  const despesas: DespesaPlanejada[] = [];
+  const saldoDaLinha = (l: LinhaTricount): Centavos => (l.pagos.get(nomeA) ?? 0) - (l.partes.get(nomeA) ?? 0);
+
+  // 1. O último acerto do Tricount.
+  const cronologica = ordemCronologica(analise.linhas);
   let saldoFinalA = 0;
+  let iAcerto = -1;
+  let residuoA = 0;
+  cronologica.forEach((l, i) => {
+    saldoFinalA += saldoDaLinha(l);
+    if (l.tipo === 'transferencia' && Math.abs(saldoFinalA) < LIMITE_ACERTO) {
+      iAcerto = i;
+      residuoA = saldoFinalA;
+    }
+  });
+  const acertadasNoTricount = new Set(cronologica.slice(0, iAcerto + 1));
+  const ultimoAcerto = cronologica[iAcerto]?.data ?? null;
+
+  // 2. Despesas, na ordem do arquivo (os ids não mudam de uma importação para outra).
+  const vistas = new Map<string, number>();
+  const candidatas: { id: string; dados: DadosDespesa; noTricount: boolean }[] = [];
   let transferencias = 0;
   let divididas = 0;
-  let jaImportadas = 0;
-
   for (const l of analise.linhas) {
-    // Saldo final do Tricount (despesas e transferências): o que pagou − a parte de cada um.
-    saldoFinalA += (l.pagos.get(nomeA) ?? 0) - (l.partes.get(nomeA) ?? 0);
     if (l.tipo === 'transferencia') {
       transferencias += 1;
       continue;
@@ -295,13 +380,9 @@ export function planejarImportacao(analise: AnaliseTricount, opcoes: OpcoesImpor
     if (pagadores.length === 0) continue;
     if (pagadores.length > 1) divididas += 1;
     for (const [pessoa, nome] of pagadores) {
-      const id = pagadores.length > 1 ? `${base}_${pessoa}` : base;
-      if (existentes.has(id)) {
-        jaImportadas += 1;
-        continue;
-      }
-      despesas.push({
-        id,
+      candidatas.push({
+        id: pagadores.length > 1 ? `${base}_${pessoa}` : base,
+        noTricount: acertadasNoTricount.has(l),
         dados: {
           valor: l.pagos.get(nome) ?? 0,
           descricao: l.titulo.slice(0, 120),
@@ -316,36 +397,40 @@ export function planejarImportacao(analise: AnaliseTricount, opcoes: OpcoesImpor
     }
   }
 
-  // Resumo por mês e meses que entram fechados.
-  const porMesMapa = new Map<Competencia, { quantidade: number; total: Centavos }>();
-  for (const d of despesas) {
-    const m = porMesMapa.get(d.dados.competencia) ?? { quantidade: 0, total: 0 };
+  // 3. Meses: fecha os anteriores ao corrente em que tudo já foi acertado.
+  const meses = new Map<Competencia, { quantidade: number; total: Centavos; emAberto: number }>();
+  for (const c of candidatas) {
+    const m = meses.get(c.dados.competencia) ?? { quantidade: 0, total: 0, emAberto: 0 };
     m.quantidade += 1;
-    m.total += d.dados.valor;
-    porMesMapa.set(d.dados.competencia, m);
+    m.total += c.dados.valor;
+    if (!c.noTricount) m.emAberto += 1;
+    meses.set(c.dados.competencia, m);
   }
-  const mesesFechar = [...porMesMapa.keys()]
-    .filter((c) => c < opcoes.mesCorrente && !mesFechado(estado, LIVRO_CASA, c))
-    .sort();
-  const mesesJaFechados = [...porMesMapa.keys()].filter((c) => mesFechado(estado, LIVRO_CASA, c)).sort();
-  const porMes = [...porMesMapa.entries()]
-    .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([c, m]) => ({ competencia: c, ...m, fechado: c < opcoes.mesCorrente }));
+  const fechaNoApp = (c: Competencia): boolean => c < opcoes.mesCorrente && (meses.get(c)?.emAberto ?? 0) === 0;
+  const planejadas: DespesaPlanejada[] = candidatas.map((c) => ({
+    id: c.id,
+    dados: c.dados,
+    acertada: c.noTricount && !fechaNoApp(c.dados.competencia),
+  }));
 
-  // Saldo do que fica em aberto (mês corrente em diante), para o ajuste igualar ao Tricount.
+  // 4. Ajuste: só se o Tricount tiver algo além das despesas em aberto (ex.: um pagamento parcial).
   let saldoAbertoA = 0;
-  for (const d of despesas) {
-    if (d.dados.competencia < opcoes.mesCorrente) continue;
+  let emAberto = 0;
+  for (const d of planejadas) {
+    if (d.acertada || fechaNoApp(d.dados.competencia)) continue;
+    emAberto += 1;
     const cotas = dividir(d.dados.valor, d.dados.pctA, d.dados.pagador);
     saldoAbertoA += (d.dados.pagador === 'A' ? d.dados.valor : 0) - cotas.A;
   }
-  const diferenca = saldoFinalA - saldoAbertoA;
+  const diferenca = saldoFinalA - residuoA - saldoAbertoA;
   const outros = estado.categorias.find((c) => semEmoji(c.nome) === 'outros')?.id ?? estado.categorias[0]?.id ?? '';
   const ajuste: DespesaPlanejada | null =
     diferenca === 0
       ? null
       : {
-          id: `tri_ajuste_${hash(analise.linhas.map((l) => l.bruta).join('\n'))}`,
+          // O id não depende da ordem das linhas no arquivo.
+          id: `tri_ajuste_${hash(analise.linhas.map((l) => l.bruta).sort().join('\n'))}`,
+          acertada: false,
           dados: {
             valor: Math.abs(diferenca),
             descricao: 'Saldo pendente do Tricount',
@@ -358,24 +443,79 @@ export function planejarImportacao(analise: AnaliseTricount, opcoes: OpcoesImpor
             pctPadrao: false,
           },
         };
-  const ajusteValido = ajuste && !existentes.has(ajuste.id) ? ajuste : null;
 
-  return { despesas, mesesFechar, ajuste: ajusteValido, saldoFinalA, porMes, transferencias, divididas, jaImportadas, mesesJaFechados };
+  // 5. Comparação com o que já está no app (importação anterior).
+  const porId = new Map(estado.despesas.map((d) => [d.id, d]));
+  const importadasAntes = estado.despesas.filter((d) => d.origem.tipo === 'importada');
+  const todas = ajuste ? [...planejadas, ajuste] : planejadas;
+  const despesas: DespesaPlanejada[] = [];
+  const corrigir: DespesaPlanejada[] = [];
+  let jaImportadas = 0;
+  for (const d of todas) {
+    const atual = porId.get(d.id);
+    if (!atual) despesas.push(d);
+    else if (jaEsta(atual, d)) jaImportadas += 1;
+    else corrigir.push(d);
+  }
+  const ids = new Set(todas.map((d) => d.id));
+  const remover = importadasAntes.filter((d) => !d.excluida && !ids.has(d.id)).map((d) => d.id);
+
+  const competencias = [...meses.keys()].sort();
+  const fechadoPelaImportacao = (c: Competencia): boolean => fechamentoDe(estado, LIVRO_CASA, c)?.importado === true;
+  const mesesFechar = competencias.filter((c) => fechaNoApp(c) && !mesFechado(estado, LIVRO_CASA, c));
+  const mesesReabrir = competencias.filter((c) => !fechaNoApp(c) && mesFechado(estado, LIVRO_CASA, c) && fechadoPelaImportacao(c));
+  const mesesJaFechados = competencias.filter((c) => mesFechado(estado, LIVRO_CASA, c) && !fechadoPelaImportacao(c));
+  const porMes = competencias.map((c) => ({ competencia: c, ...(meses.get(c) ?? { quantidade: 0, total: 0, emAberto: 0 }), fechado: fechaNoApp(c) }));
+
+  return {
+    despesas,
+    corrigir,
+    remover,
+    mesesFechar,
+    mesesReabrir,
+    ajuste,
+    saldoFinalA,
+    ultimoAcerto,
+    residuoA,
+    emAberto,
+    porMes,
+    transferencias,
+    divididas,
+    jaImportadas,
+    substitui: importadasAntes.length > 0,
+    mesesJaFechados,
+  };
 }
 
-/** Gera os eventos: as despesas (origem "importada"), o ajuste e os fechamentos dos meses passados. */
+/**
+ * Gera os eventos: despesas novas (origem "importada"), correções da importação anterior, meses
+ * reabertos e meses fechados. As correções levam "reimportacao" para o histórico agrupá-las.
+ */
 export function gerarEventosImportacao(plano: PlanoImportacao, estado: Estado, ctx: Contexto): Resultado {
-  const semCategoria = [...plano.despesas, ...(plano.ajuste ? [plano.ajuste] : [])].find((d) => !categoriaPorId(estado, d.dados.categoriaId));
+  const semCategoria = [...plano.despesas, ...plano.corrigir].find((d) => !categoriaPorId(estado, d.dados.categoriaId));
   if (semCategoria) return invalido('Escolha a categoria do app para todas as categorias do Tricount.');
+  const origem = (d: DespesaPlanejada): Origem => ({ tipo: 'importada', acertada: d.acertada });
   const eventos: Evento[] = [];
-  for (const d of [...plano.despesas, ...(plano.ajuste ? [plano.ajuste] : [])]) {
-    eventos.push(novoEvento(ctx, 'criar', 'despesa', d.id, camposNovaDespesa(d.dados, { tipo: 'importada' })));
+  for (const d of plano.despesas) {
+    eventos.push(novoEvento(ctx, 'criar', 'despesa', d.id, camposNovaDespesa(d.dados, origem(d))));
+  }
+  for (const d of plano.corrigir) {
+    eventos.push(novoEvento(ctx, 'alterar', 'despesa', d.id, { ...camposNovaDespesa(d.dados, origem(d)), reimportacao: true }));
+  }
+  for (const id of plano.remover) {
+    eventos.push(novoEvento(ctx, 'alterar', 'despesa', id, { excluida: true, reimportacao: true }));
+  }
+  for (const c of plano.mesesReabrir) {
+    eventos.push(novoEvento(ctx, 'alterar', 'fechamento', idFechamento(LIVRO_CASA, c), { status: 'aberto', reimportacao: true }));
   }
   let projetado = lerEstado(projetar([...estado.projecao.eventos, ...eventos]));
   for (const c of plano.mesesFechar) {
     const r = fecharMes(projetado, LIVRO_CASA, c, ctx);
     if (!r.ok) continue;
-    const marcados = r.eventos.map((e) => ({ ...e, campos: { ...e.campos, importado: true } }));
+    const marcados = r.eventos.map((e) => ({
+      ...e,
+      campos: { ...e.campos, importado: true, ...(e.tipo === 'alterar' ? { reimportacao: true } : {}) },
+    }));
     eventos.push(...marcados);
     projetado = lerEstado(projetar([...projetado.projecao.eventos, ...marcados]));
   }

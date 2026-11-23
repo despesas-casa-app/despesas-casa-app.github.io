@@ -57,7 +57,7 @@ function camposDaOrigem(origem: Origem): Record<string, ValorCampo> {
     case 'manual':
       return { origemTipo: 'manual' };
     case 'importada':
-      return { origemTipo: 'importada' };
+      return { origemTipo: 'importada', acertadaNoTricount: origem.acertada };
     case 'recorrente':
       return { origemTipo: 'recorrente', origemId: origem.id };
     case 'parcela':

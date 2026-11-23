@@ -16,9 +16,10 @@ export function ItemDespesa({ despesa: d, estado, mostrarData = false }: { despe
   const categoria = categoriaPorId(estado, d.categoriaId);
   const fechado = mesFechado(estado, d.livro, d.competencia);
   const editadaPorOutro = d.editada && d.alteradoPor !== d.criadoPor;
+  const acertadaNoTricount = d.origem.tipo === 'importada' && d.origem.acertada;
   return (
     <li>
-      <button type="button" className="item-despesa" onClick={() => { navegar({ tela: 'editar', id: d.id }); }}>
+      <button type="button" className={acertadaNoTricount ? 'item-despesa item-acertado' : 'item-despesa'} onClick={() => { navegar({ tela: 'editar', id: d.id }); }}>
         <span className="item-icone" style={{ backgroundColor: `${categoria?.cor ?? '#999'}22` }} aria-hidden="true">
           {categoria?.icone ?? '•'}
         </span>
@@ -28,8 +29,9 @@ export function ItemDespesa({ despesa: d, estado, mostrarData = false }: { despe
             {mostrarData && `${formatarData(d.data).slice(0, 5)} · `}
             {categoria?.nome ?? 'Sem categoria'} · pago por {nomeDe(estado.config, d.pagador)}
           </span>
-          {(editadaPorOutro || d.origem.tipo === 'recorrente') && (
+          {(editadaPorOutro || d.origem.tipo === 'recorrente' || acertadaNoTricount) && (
             <span className="item-selos">
+              {acertadaNoTricount && <span className="selo">já acertada no Tricount</span>}
               {d.origem.tipo === 'recorrente' && (
                 <span className="selo">
                   <Icone nome="repetir" tamanho={12} /> recorrente

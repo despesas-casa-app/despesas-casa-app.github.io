@@ -41,7 +41,7 @@ function origemTexto(d: Despesa): string {
     case 'manual':
       return 'avulsa';
     case 'importada':
-      return 'importada';
+      return d.origem.acertada ? 'importada (já acertada no Tricount)' : 'importada';
     case 'recorrente':
       return 'recorrente';
     case 'parcela':

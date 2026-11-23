@@ -24,6 +24,13 @@ export interface ItemAtividade {
 
 type Campos = Record<string, ValorCampo>;
 
+interface Lote {
+  tipo: 'importou' | 'corrigiu';
+  indice: number;
+  despesas: number;
+  meses: number;
+}
+
 function reais(v: ValorCampo | undefined): string {
   return typeof v === 'number' ? formatarReais(v) : '—';
 }
@@ -47,8 +54,8 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
   const categorias = new Map<string, Campos>();
   const itens: ItemAtividade[] = [];
   const pessoa = (v: ValorCampo | undefined): string => (v === 'A' || v === 'B' ? nomeDe(config, v) : '—');
-  // Importação do Tricount: centenas de eventos seguidos viram uma linha só.
-  let lote: { indice: number; despesas: number; meses: number } | null = null;
+  // Importação do Tricount: centenas de eventos seguidos viram uma linha só (e a correção também).
+  let lote = null as Lote | null;
 
   for (const e of ordenados) {
     const chave = chaveEntidade(e.entidade, e.entidadeId);
@@ -60,17 +67,20 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
     if (e.entidade === 'categoria') categorias.set(e.entidadeId, depois);
 
     const quem = nomeDe(config, e.autor);
-    const textos = descrever(e, antes, depois, quem, categorias, pessoa);
-    if (textos.length === 0) continue;
     const importado = !antes && (depois['origemTipo'] === 'importada' || (e.entidade === 'fechamento' && depois['importado'] === true));
+    const tipoLote = e.campos['reimportacao'] === true ? 'corrigiu' : importado ? 'importou' : null;
+    const textos = tipoLote === 'corrigiu' ? [textoDoLote('corrigiu', quem, 1, 0)] : descrever(e, antes, depois, quem, categorias, pessoa);
+    if (textos.length === 0) continue;
     const anterior = lote ? itens[lote.indice] : undefined;
-    if (importado && lote && anterior && lote.indice === itens.length - 1 && anterior.pessoa === e.autor) {
+    if (tipoLote && lote?.tipo === tipoLote && anterior && lote.indice === itens.length - 1 && anterior.pessoa === e.autor) {
       if (e.entidade === 'fechamento') lote.meses += 1;
       else lote.despesas += 1;
-      itens[lote.indice] = { ...anterior, textos: [textoDoLote(quem, lote.despesas, lote.meses)] };
+      itens[lote.indice] = { ...anterior, textos: [textoDoLote(lote.tipo, quem, lote.despesas, lote.meses)] };
       continue;
     }
-    lote = importado ? { indice: itens.length, despesas: e.entidade === 'fechamento' ? 0 : 1, meses: e.entidade === 'fechamento' ? 1 : 0 } : null;
+    lote = tipoLote
+      ? { tipo: tipoLote, indice: itens.length, despesas: e.entidade === 'fechamento' ? 0 : 1, meses: e.entidade === 'fechamento' ? 1 : 0 }
+      : null;
     itens.push({
       eventoId: e.id,
       instante: instanteDoHlc(e.hlc),
@@ -85,7 +95,11 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
   return itens.reverse();
 }
 
-function textoDoLote(quem: string, despesas: number, meses: number): string {
+function textoDoLote(tipo: 'importou' | 'corrigiu', quem: string, despesas: number, meses: number): string {
+  if (tipo === 'corrigiu') {
+    const n = despesas + meses;
+    return `${quem} corrigiu a importação do Tricount: ${String(n)} ${n === 1 ? 'mudança' : 'mudanças'}`;
+  }
   const partes = [
     despesas > 0 ? `${String(despesas)} ${despesas === 1 ? 'despesa' : 'despesas'}` : '',
     meses > 0 ? `${String(meses)} ${meses === 1 ? 'mês acertado' : 'meses acertados'}` : '',
