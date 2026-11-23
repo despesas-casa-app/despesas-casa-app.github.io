@@ -135,8 +135,9 @@ reaproveitando o mesmo motor. O modelo já nasce preparado para isso.
 - Ao abrir o app, gerar as ocorrências que faltam até o mês corrente. A ocorrência do mês aparece
   já no dia 1º, com a data do dia configurado.
 - Se o dia configurado não existir no mês (ex.: dia 31 em fevereiro), usar o último dia do mês.
-- O id de cada ocorrência é **determinístico** (hash de recorrenteId + competência), para que
-  dois aparelhos gerando offline não dupliquem nada.
+- O id de cada ocorrência é **determinístico** (composto de recorrenteId + competência, ex.:
+  `rec_<id>_2026-11`; ele fica dentro do conteúdo criptografado), para que dois aparelhos gerando
+  offline não dupliquem nada.
 - Recorrentes de valor variável entram com status **"aguardando valor"** e aparecem como
   pendência no topo da tela inicial.
 
@@ -320,6 +321,8 @@ categorias. Depois disso, cada categoria é editada individualmente.
 ## 8. Inteligência de sugestão (local)
 - Aprende com o histórico, incluindo o importado: descrição normalizada →
   frequência de categoria, % e quem pagou.
+- Só ensinam os lançamentos feitos à mão (e os importados). Parcelas e recorrentes, que entram
+  sozinhas, não contam — senão um sofá em 10x viraria "a compra mais frequente".
 - Busca aproximada (sem acento, sem caixa, tokens, prefixos).
 - Ranking por frequência e recência.
 - Roda 100% no aparelho. Nenhuma API externa.

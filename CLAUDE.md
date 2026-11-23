@@ -83,7 +83,10 @@ src/
                  adulteração de ciphertext e de AAD.
   armazenamento/ Interface de armazenamento remoto + implementações: memória/local (testes e
                  modo demonstração) e Google Sheets.
-  interface/     Telas React. Só conversa com o domínio e com as interfaces, nunca o contrário.
+  aplicacao/     A "loja": guarda os eventos do aparelho, monta o estado e executa as regras;
+                 demo.ts gera os dados FICTÍCIOS do modo demonstração.
+  interface/     Telas React (telas/ e componentes/). Só conversa com a loja e o domínio.
+                 Navegação por "#" (rotas.ts). Gráficos em SVG feito à mão.
   main.tsx       Ponto de entrada; recusa rodar dentro de iframe (proteção contra clickjacking).
 scripts/         Verificador de segredos (+ testes) e gerador de ícones.
 .githooks/       Ganchos do Git: pre-commit e commit-msg rodam o verificador de segredos.
