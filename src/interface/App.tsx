@@ -9,6 +9,7 @@ import { Janela } from './componentes/Basicos.tsx';
 import { Icone, type NomeIcone } from './componentes/Icone.tsx';
 import { useAvisar, useFoto, useLoja } from './contexto.tsx';
 import { navegar, useRota, type Rota } from './rotas.ts';
+import { useModo } from './sessaoContexto.tsx';
 import { Acertar } from './telas/Acertar.tsx';
 import { Atividade } from './telas/Atividade.tsx';
 import { Categorias } from './telas/Categorias.tsx';
@@ -156,6 +157,7 @@ function AvisoMesFechado() {
 export function App() {
   const rota = useRota();
   const { carregado } = useFoto();
+  const modo = useModo();
   if (!carregado) {
     return (
       <main className="tela carregando" aria-busy="true">
@@ -165,9 +167,11 @@ export function App() {
   }
   return (
     <>
-      <div className="faixa-demo" role="note">
-        <Icone nome="alerta" tamanho={14} /> Modo demonstração · dados fictícios, só neste aparelho
-      </div>
+      {modo === 'demo' && (
+        <div className="faixa-demo" role="note">
+          <Icone nome="alerta" tamanho={14} /> Modo demonstração · dados fictícios, só neste aparelho
+        </div>
+      )}
       <Tela rota={rota} />
       {rota.tela !== 'nova' && rota.tela !== 'editar' && <BarraNavegacao rota={rota} />}
       <AvisoMesFechado />

@@ -1281,3 +1281,195 @@ h2 {
   font-weight: 600;
   font-size: 0.9rem;
 }
+
+/* ---------- Segurança: boas-vindas, criação do cofre, bloqueio ---------- */
+
+.tela-centro {
+  min-height: 100dvh;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding-bottom: 32px;
+}
+
+.logo-grande {
+  border-radius: 22px;
+}
+
+.titulo-app {
+  font-size: 1.8rem;
+  letter-spacing: -0.02em;
+}
+
+.subtitulo {
+  margin: 0;
+  color: var(--texto-suave);
+  max-width: 340px;
+}
+
+.centro {
+  text-align: center;
+}
+
+.acoes-boas-vindas,
+.lista-botoes,
+.configurar-desbloqueio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.configurar-desbloqueio p {
+  margin: 0;
+}
+
+.largura-total {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}
+
+.botao-grande {
+  min-height: 60px;
+  font-size: 1.1rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.passo {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.passo h2 {
+  font-size: 1.15rem;
+}
+
+.passo p {
+  margin: 0;
+}
+
+.lista-pontos {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.frase-mostrada {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.frase-mostrada li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.frase-mostrada li span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--marca-clara);
+  color: var(--marca-forte);
+  font-size: 0.8rem;
+}
+
+.campo-frase {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio-pequeno);
+  background: var(--superficie);
+  font: inherit;
+  font-size: 1.05rem;
+  resize: vertical;
+}
+
+.ajuda.ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.teclado-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.teclado-titulo {
+  margin: 0;
+  font-weight: 650;
+}
+
+.pin-bolinhas {
+  display: flex;
+  gap: 12px;
+  min-height: 16px;
+}
+
+.bolinha {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--marca-forte);
+}
+
+.bolinha.cheia {
+  background: var(--marca-forte);
+}
+
+.teclas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+}
+
+.tecla {
+  display: grid;
+  place-items: center;
+  height: 64px;
+  border: 1px solid var(--borda);
+  border-radius: 18px;
+  background: var(--superficie);
+  font-size: 1.5rem;
+  font-weight: 650;
+}
+
+.tecla:disabled {
+  opacity: 0.45;
+}
+
+.tecla-secundaria {
+  background: transparent;
+  border-color: transparent;
+}
+
+.tecla-ok {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: var(--sobre-marca);
+}

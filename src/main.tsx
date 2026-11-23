@@ -1,11 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { semearDemonstracao } from './aplicacao/demo.ts';
-import { Loja } from './aplicacao/loja.ts';
+import { Cofre } from './aplicacao/cofre.ts';
+import { Sessao } from './aplicacao/sessao.ts';
+import { ArmazemIndexedDb } from './armazenamento/cifrado.ts';
 import { LocalIndexedDb } from './armazenamento/local.ts';
-import { App } from './interface/App.tsx';
-import { ProvedorApp } from './interface/contexto.tsx';
 import { estaEmbutido } from './interface/protecao.ts';
+import { Raiz } from './interface/Raiz.tsx';
+import { ProvedorSessao } from './interface/sessaoContexto.tsx';
 import './interface/estilos.css';
 
 const raiz = document.getElementById('raiz');
@@ -13,16 +14,19 @@ const raiz = document.getElementById('raiz');
 if (estaEmbutido(window)) {
   document.body.textContent = 'Por segurança, este app não pode ser aberto dentro de outro site.';
 } else if (raiz) {
-  // Fase 1: modo demonstração, com banco próprio (separado do banco real das próximas fases).
-  const loja = new Loja(new LocalIndexedDb('viver-gasta-demo'));
+  // Banco real (só dados criptografados) e banco da demonstração (fictício), separados.
+  const armazem = new ArmazemIndexedDb('viver-gasta');
+  const sessao = new Sessao({
+    armazem,
+    cofre: new Cofre(armazem),
+    repositorioDemo: new LocalIndexedDb('viver-gasta-demo'),
+  });
   createRoot(raiz).render(
     <StrictMode>
-      <ProvedorApp loja={loja}>
-        <App />
-      </ProvedorApp>
+      <ProvedorSessao sessao={sessao}>
+        <Raiz />
+      </ProvedorSessao>
     </StrictMode>,
   );
-  void loja.iniciar((l) => {
-    semearDemonstracao(l);
-  });
+  void sessao.iniciar();
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useFoto } from '../contexto.tsx';
+import { useModo } from '../sessaoContexto.tsx';
 
 function useConectado(): boolean {
   const [conectado, setConectado] = useState(() => navigator.onLine);
@@ -24,11 +25,15 @@ function useConectado(): boolean {
 export function IndicadorSync() {
   const { erroAoSalvar } = useFoto();
   const conectado = useConectado();
+  const modo = useModo();
   if (erroAoSalvar) return <span className="indicador indicador-erro">Erro ao salvar</span>;
   return (
-    <span className="indicador" title="Modo demonstração: dados fictícios, só neste aparelho">
+    <span
+      className="indicador"
+      title={modo === 'demo' ? 'Modo demonstração: dados fictícios, só neste aparelho' : 'Dados criptografados, só neste aparelho (a sincronização chega na Fase 3)'}
+    >
       <span className={conectado ? 'ponto ponto-demo' : 'ponto ponto-offline'} aria-hidden="true" />
-      {conectado ? 'Demonstração' : 'Offline · demonstração'}
+      {modo === 'demo' ? (conectado ? 'Demonstração' : 'Offline · demonstração') : conectado ? 'Só neste aparelho' : 'Offline'}
     </span>
   );
 }

@@ -4,11 +4,15 @@ import { definirNomes } from '../../dominio/config.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos } from '../componentes/Basicos.tsx';
 import { useAvisar, useFoto, useLoja } from '../contexto.tsx';
 import { navegar } from '../rotas.ts';
+import { SecaoSeguranca } from '../seguranca/SecaoSeguranca.tsx';
+import { useModo, useSessao } from '../sessaoContexto.tsx';
 
 export function Configuracoes() {
   const loja = useLoja();
   const { estado, euSou } = useFoto();
   const avisar = useAvisar();
+  const modo = useModo();
+  const sessao = useSessao();
   const [nomeA, setNomeA] = useState(estado.config.nomeA);
   const [nomeB, setNomeB] = useState(estado.config.nomeB);
   const [erro, setErro] = useState<string | null>(null);
@@ -58,12 +62,7 @@ export function Configuracoes() {
         />
       </section>
 
-      <section className="secao cartao">
-        <h2>Segurança</h2>
-        <p className="ajuda">
-          Chega na Fase 2: desbloqueio por biometria (com PIN só como reserva), bloquear agora e trocar a frase-mestra.
-        </p>
-      </section>
+      {modo === 'real' && <SecaoSeguranca />}
 
       <section className="secao cartao">
         <h2>Dados</h2>
@@ -76,15 +75,20 @@ export function Configuracoes() {
         </ul>
       </section>
 
-      <section className="secao cartao">
-        <h2>Modo demonstração</h2>
-        <p className="ajuda">
-          Tudo aqui é fictício e fica só neste aparelho. Não digite dados reais nesta fase.
-        </p>
-        <button type="button" className="botao" onClick={() => { setConfirmarRecomeco(true); }}>
-          Recomeçar com dados de exemplo
-        </button>
-      </section>
+      {modo === 'demo' && (
+        <section className="secao cartao">
+          <h2>Modo demonstração</h2>
+          <p className="ajuda">Tudo aqui é fictício e fica só neste aparelho. Não digite dados reais na demonstração.</p>
+          <div className="lista-botoes">
+            <button type="button" className="botao" onClick={() => { setConfirmarRecomeco(true); }}>
+              Recomeçar com dados de exemplo
+            </button>
+            <button type="button" className="botao" onClick={() => { void sessao.sairDemo(); }}>
+              Sair da demonstração
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="secao cartao sobre">
         <h2>Sobre</h2>
