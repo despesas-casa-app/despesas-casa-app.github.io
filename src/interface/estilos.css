@@ -7,15 +7,19 @@
   --texto: #1f1a10;
   --texto-suave: #6b6250;
   --borda: #e9e1cb;
-  --marca: #f5bf0f;
-  --marca-clara: #fff1bf;
-  --marca-forte: #a87500;
+  /* Cor principal: #F8D588. "forte" é o mesmo tom escurecido, para texto e ícones legíveis. */
+  --marca: #f8d588;
+  --marca-clara: #fdf0d2;
+  --marca-forte: #8a6212;
+  --marca-topo: #fbe3ae;
+  --marca-base: #f4c76b;
+  --marca-sombra: rgb(150 105 20 / 22%);
   --sobre-marca: #1f1a10;
   --ok: #15803d;
   --alerta: #a35a00;
   --alerta-fundo: #fff2db;
   --perigo: #b42318;
-  --cor-a: #e0a400;
+  --cor-a: #e2b24f;
   --cor-b: #4f6bed;
   --sombra: 0 1px 2px rgb(60 45 0 / 6%), 0 4px 14px rgb(60 45 0 / 6%);
   --raio: 16px;
@@ -38,9 +42,10 @@
     --texto: #f3eee2;
     --texto-suave: #aaa18c;
     --borda: #343024;
-    --marca: #f5bf0f;
-    --marca-clara: #3a3115;
-    --marca-forte: #f5c93a;
+    --marca: #f8d588;
+    --marca-clara: #3a3222;
+    --marca-forte: #f8d588;
+    --marca-sombra: rgb(0 0 0 / 35%);
     --alerta: #f3b44b;
     --alerta-fundo: #3a2a10;
     --perigo: #f2836f;
@@ -77,7 +82,7 @@ button {
 }
 
 :focus-visible {
-  outline: 3px solid var(--marca);
+  outline: 3px solid var(--marca-forte);
   outline-offset: 2px;
 }
 
@@ -216,7 +221,7 @@ h2 {
   background: var(--marca);
   border-color: var(--marca);
   color: var(--sobre-marca);
-  box-shadow: 0 2px 0 var(--marca-forte);
+  box-shadow: 0 2px 0 var(--marca-base);
 }
 
 .botao-secundario {
@@ -321,9 +326,9 @@ h2 {
   gap: 10px;
   padding: 20px;
   border-radius: 20px;
-  background: linear-gradient(160deg, #ffd83a, #f2b205);
+  background: linear-gradient(160deg, var(--marca-topo), var(--marca) 55%, var(--marca-base));
   color: var(--sobre-marca);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 6px 18px rgb(180 130 0 / 25%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 6px 18px var(--marca-sombra);
   overflow: hidden;
 }
 
@@ -1180,9 +1185,9 @@ h2 {
   margin-top: -22px;
   border: 4px solid var(--fundo);
   border-radius: 18px;
-  background: linear-gradient(160deg, #ffd83a, #f2b205);
+  background: linear-gradient(160deg, var(--marca-topo), var(--marca) 55%, var(--marca-base));
   color: var(--sobre-marca);
-  box-shadow: 0 4px 12px rgb(180 130 0 / 35%), inset 0 1px 0 rgb(255 255 255 / 60%);
+  box-shadow: 0 4px 12px var(--marca-sombra), inset 0 1px 0 rgb(255 255 255 / 60%);
 }
 
 /* ---------- Janela (dialog) e aviso ---------- */

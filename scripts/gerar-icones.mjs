@@ -11,9 +11,10 @@ import { deflateSync } from 'node:zlib';
 // Desenho (coordenadas no espaço 0–512, iguais às do SVG)
 // ---------------------------------------------------------------------------------------------
 
-const REJUNTE = [0xff, 0xf6, 0xdc];
-const AZULEJO_TOPO = [0xff, 0xd8, 0x3a];
-const AZULEJO_BASE = [0xf2, 0xb2, 0x05];
+const REJUNTE = [0xff, 0xfc, 0xf4];
+// Cor principal do app: #F8D588 (no meio do azulejo), com degradê suave de esmalte.
+const AZULEJO_TOPO = [0xfb, 0xe3, 0xae];
+const AZULEJO_BASE = [0xf4, 0xc7, 0x6b];
 const RAIO_ICONE = 104;
 /** Margem externa maior que o rejunte interno, para os azulejos dos cantos não serem cortados. */
 const MARGEM = 26;
@@ -57,7 +58,7 @@ function corDoAzulejo(x, y) {
       const t = (y - y0) / LADO_AZULEJO;
       let cor = misturar(AZULEJO_TOPO, AZULEJO_BASE, t);
       const ajuste = VARIACAO[linha * AZULEJOS_POR_LADO + coluna] ?? 0;
-      cor = cor.map((v) => v + ajuste);
+      cor = cor.map((v) => v + ajuste * 0.6);
 
       // Bisel: borda de cima/esquerda mais clara, de baixo/direita mais escura.
       if (dentro < BISEL) {
@@ -65,7 +66,7 @@ function corDoAzulejo(x, y) {
         const luz = (x0 + LADO_AZULEJO - x + (y0 + LADO_AZULEJO - y)) / (2 * LADO_AZULEJO); // 1 no canto sup. esq.
         cor = luz > 0.5
           ? misturar(cor, [255, 255, 255], forca * 0.45)
-          : misturar(cor, [0xc9, 0x8a, 0x00], forca * 0.35);
+          : misturar(cor, [0xc4, 0x93, 0x3c], forca * 0.4);
       }
 
       // Reflexo do esmalte: faixa diagonal suave no alto do azulejo.
