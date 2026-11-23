@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  comMaiuscula,
   competencia,
   competenciaDaData,
   dataLocal,
@@ -147,6 +148,8 @@ describe('competência e datas', () => {
     expect(nomeDoMes('2026-12')).toBe('dezembro');
     expect(nomeCurtoDaCompetencia('2026-11')).toBe('nov/26');
     expect(dataLocal(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
+    expect(comMaiuscula('outubro de 2026')).toBe('Outubro de 2026');
+    expect(comMaiuscula('')).toBe('');
   });
 });
 

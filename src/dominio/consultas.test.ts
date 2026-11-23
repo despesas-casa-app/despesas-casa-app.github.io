@@ -70,6 +70,19 @@ describe('sugestões', () => {
     ]);
   });
 
+  it('parcelas e recorrentes não contam para as sugestões', () => {
+    const ana = novaCasa();
+    lancar(ana, { descricao: 'Mercado', cat: 'Despesas da Casa' });
+    ana.fazer((e, ctx) =>
+      criarParcelamento(e, {
+        descricao: 'Sofá', categoriaId: idCategoria(e, 'Compras'), pagador: 'A', pctA: 5000, pctPadrao: true,
+        n: 10, valorParcela: 100, dataCompra: '2026-11-01', primeiraCompetencia: '2026-11',
+      }, ctx),
+    );
+    expect(sugerir(ana.estado(), '').map((s) => s.descricao)).toEqual(['Mercado']);
+    expect(categoriasMaisUsadas(ana.estado())).toEqual([idCategoria(ana.estado(), 'Despesas da Casa')]);
+  });
+
   it('não sugere categoria arquivada e ignora descrição vazia', () => {
     const ana = novaCasa();
     lancar(ana, { descricao: 'Gasolina', cat: 'Carro' });

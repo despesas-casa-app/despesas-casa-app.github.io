@@ -99,3 +99,8 @@ export function nomeCurtoDaCompetencia(c: Competencia): string {
   const { ano, mes } = partesCompetencia(c);
   return `${(MESES[mes - 1] ?? '').slice(0, 3)}/${String(ano).slice(2)}`;
 }
+
+/** Primeira letra maiúscula: "outubro de 2026" → "Outubro de 2026". */
+export function comMaiuscula(texto: string): string {
+  return texto.charAt(0).toLocaleUpperCase('pt-BR') + texto.slice(1);
+}

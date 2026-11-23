@@ -57,7 +57,8 @@ function contar<K>(mapa: Map<K, { n: number; ultima: string }>, chave: K, data: 
 function agrupar(despesas: readonly Despesa[]): Map<string, Grupo> {
   const grupos = new Map<string, Grupo>();
   for (const d of despesas) {
-    if (d.excluida) continue;
+    // Só o que foi digitado à mão ensina: parcelas e recorrentes são lançadas sozinhas.
+    if (d.excluida || d.origem.tipo !== 'manual') continue;
     const chave = normalizarTexto(d.descricao);
     if (chave === '') continue;
     let g = grupos.get(chave);
@@ -127,7 +128,9 @@ export function sugerir(estado: Estado, texto: string, limite = 5): Sugestao[] {
 /** Categorias em ordem de uso recente (para mostrar primeiro as mais prováveis). */
 export function categoriasMaisUsadas(estado: Estado): string[] {
   const contagem = new Map<string, { n: number; ultima: string }>();
-  for (const d of estado.despesas) if (!d.excluida) contar(contagem, d.categoriaId, d.data);
+  for (const d of estado.despesas) {
+    if (!d.excluida && d.origem.tipo === 'manual') contar(contagem, d.categoriaId, d.data);
+  }
   return [...contagem.entries()]
     .sort((a, b) => b[1].n - a[1].n || (a[1].ultima < b[1].ultima ? 1 : -1))
     .map(([id]) => id);
