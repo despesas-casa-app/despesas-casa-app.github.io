@@ -113,18 +113,30 @@ Peça para a sua esposa fazer o mesmo na conta dela.
 
 ## Parte 6 — Chave de API do seletor de arquivos (Picker)
 
+> A tela do Google mudou: agora você **configura a chave primeiro**, e ela só aparece **depois**
+> de clicar em **Criar**. Se a sua tela for a antiga (a chave aparece logo de cara), veja a
+> observação no fim desta parte.
+
 1. Menu ☰ → **APIs e serviços / APIs & Services** → **Credenciais / Credentials**.
 2. Clique em **+ Criar credenciais / + Create credentials** → **Chave de API / API key**.
-3. Copie a chave que aparece (começa com `AIza`) e clique em **Editar chave de API / Edit API key**
-   (ou no lápis ao lado dela na lista).
-4. **Nome / Name**: `Picker`.
-5. Em **Restrições do aplicativo / Application restrictions**, escolha **Sites / Websites** e
-   adicione dois itens com **Adicionar / Add**:
+   Abre um painel à direita.
+3. **Nome / Name**: `Picker`.
+4. **Selecionar restrições da API / Select API restrictions**: abra a lista e marque só
+   **Google Picker API**. Clique fora da lista (ou em **OK**) para fechá-la.
+   - Se a Google Picker API não aparecer, ela ainda não foi ativada: faça o item 4 da Parte 3 e
+     volte aqui.
+   - Ignore o quadro azul sobre "conta de serviço": ele vale para outras APIs, não para esta.
+5. Em **Restrições do aplicativo / Application restrictions**, marque **Sites / Websites**. Logo
+   abaixo, adicione dois itens com **Adicionar / Add**:
    - `https://despesas-casa-app.github.io/*`
    - `http://localhost:4173/*`
-6. Em **Restrições de API / API restrictions**, escolha **Restringir chave / Restrict key** e marque
-   só **Google Picker API**.
-7. Clique em **Salvar / Save**.
+6. Role o painel até o fim e clique em **Criar / Create**.
+7. Aparece a chave (começa com `AIza`). **Copie** e guarde junto com o ID do cliente.
+   - Se fechou sem copiar: na lista **Chaves de API / API keys**, clique em **Mostrar chave /
+     Show key** ao lado de `Picker`.
+
+**Tela antiga:** se a chave aparecer logo depois do passo 2, copie-a, clique em **Editar chave de
+API / Edit API key** e faça os passos 3 a 5 lá; no fim, clique em **Salvar / Save**.
 
 ---
 
