@@ -167,6 +167,9 @@ reaproveitando o mesmo motor. O modelo já nasce preparado para isso.
   fechada, ou se uma despesa lançada offline chegar pela sincronização depois que o mês foi
   fechado, o app mostra a janela **"Esse mês já está fechado. O que você deseja fazer?"** com as
   opções **"Mover para o mês em aberto"** e **"Reabrir o mês"**. Nada é movido sozinho.
+  - Exceção: ao **editar ou excluir uma despesa que já entrou no acerto**, a janela oferece só
+    **"Reabrir o mês"**. Movê-la faria a mesma despesa ser cobrada duas vezes (no acerto antigo
+    e no novo).
 
 **Edição**
 - Qualquer um dos dois pode editar ou excluir qualquer despesa, inclusive as lançadas pelo outro.
