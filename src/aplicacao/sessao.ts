@@ -1,7 +1,7 @@
 import { RepositorioCifrado, type ArmazemLocal } from '../armazenamento/cifrado.ts';
 import type { RepositorioLocal } from '../armazenamento/local.ts';
 import { criarCategoriasIniciais } from '../dominio/categorias.ts';
-import { definirEmails, definirNomes, pessoaDoEmail } from '../dominio/config.ts';
+import { definirEmails, definirNomes, ehEmailValido, normalizarEmail, pessoaDoEmail } from '../dominio/config.ts';
 import { nomeDe } from '../dominio/estado.ts';
 import { gerarRecorrentesPendentes } from '../dominio/recorrentes.ts';
 import type { Pessoa, PontosBase } from '../dominio/tipos.ts';
@@ -247,6 +247,43 @@ export class Sessao {
       throw new ContaNaoAutorizada(email);
     }
     await sync.sincronizar();
+  }
+
+  /**
+   * Liga ao Google um cofre que foi criado só no aparelho: abre o login (chamar dentro do toque),
+   * cria a planilha com os parâmetros do cofre, compartilha com a outra pessoa, grava os e-mails e
+   * começa a sincronizar (tudo o que já existe sobe cifrado).
+   */
+  async conectarPlanilha(outroEmail: string): Promise<{ readonly compartilhou: boolean; readonly email: string }> {
+    if (this.estado.fase !== 'aberto' || this.estado.modo !== 'real' || !this.dek) throw new Error('Desbloqueie o app primeiro.');
+    if (this.estado.sync) throw new Error('Este cofre já está ligado a uma planilha.');
+    const remoto = this.exigirRemoto();
+    const outro = normalizarEmail(outroEmail);
+    if (!ehEmailValido(outro)) throw new Error('Informe o e-mail Google da outra pessoa.');
+    await remoto.entrar();
+    const meuEmail = normalizarEmail(await remoto.emailDaConta());
+    if (meuEmail === outro) throw new Error('O e-mail da outra pessoa precisa ser diferente do seu.');
+    const meta = await this.deps.cofre.meta();
+    if (!meta) throw new Error('Cofre não encontrado neste aparelho.');
+    const { loja } = this.estado;
+    const dek = this.dek;
+    const planilha = await remoto.criarPlanilha();
+    await planilha.anexarMetaCofre(meta);
+    let compartilhou = true;
+    try {
+      await remoto.compartilhar(planilha.id, outro);
+    } catch {
+      compartilhou = false;
+    }
+    const euSou = loja.obterFoto().euSou;
+    const [emailA, emailB] = euSou === 'A' ? [meuEmail, outro] : [outro, meuEmail];
+    const r = loja.executar((e, ctx) => definirEmails(e, emailA, emailB, ctx));
+    if (!r.ok) throw new Error(r.erro === 'invalido' ? r.mensagem : 'Não foi possível salvar os e-mails.');
+    await this.deps.armazem.gravarMeta(CHAVE_PLANILHA, planilha.id);
+    await loja.aguardarGravacao();
+    const sync = await this.ligarSincronizacao(loja, dek);
+    this.mudar({ fase: 'aberto', loja, modo: 'real', sync });
+    return { compartilhou, email: outro };
   }
 
   /** Guarda uma mensagem para mostrar uma única vez quando o app abrir (depois de criar o cofre). */

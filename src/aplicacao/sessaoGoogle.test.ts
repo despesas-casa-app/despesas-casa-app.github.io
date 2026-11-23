@@ -236,3 +236,83 @@ describe('aviso inicial', () => {
     expect(s.tomarAvisoInicial()).toBeNull();
   });
 });
+
+describe('cofre criado só no aparelho: conectar à planilha depois', () => {
+  async function cofreLocal(google: GoogleFalso) {
+    const ana = celular(google, 'Pessoa.A@exemplo.com');
+    await ana.sessao.iniciar();
+    const palavras = gerarFrase();
+    const dek = await ana.cofre.criar(palavras);
+    await ana.cofre.configurarPin(dek, '284917');
+    await ana.sessao.concluirCriacao(dek, { nomeA: 'Ana', nomeB: 'Bruno', euSou: 'A', pctProporcional: 6000 });
+    const e = ana.sessao.obter();
+    if (e.fase !== 'aberto') throw new Error('deveria estar aberto');
+    expect(e.sync).toBeNull();
+    e.loja.executar((est, ctx) =>
+      criarDespesa(est, {
+        valor: 2500, descricao: 'Feira', data: '2026-11-10', competencia: '2026-11',
+        categoriaId: est.categorias[1]?.id ?? '', pagador: 'A', pctA: 6000, pctPadrao: true,
+      }, ctx),
+    );
+    return { ...ana, palavras, loja: e.loja };
+  }
+
+  it('cria a planilha, compartilha, grava os e-mails e sobe tudo; a 2ª pessoa consegue entrar', async () => {
+    const google = new GoogleFalso();
+    const ana = await cofreLocal(google);
+    const r = await ana.sessao.conectarPlanilha(' Pessoa.B@Exemplo.com ');
+    expect(r).toEqual({ compartilhou: true, email: 'pessoa.b@exemplo.com' });
+    const e = ana.sessao.obter();
+    if (e.fase !== 'aberto' || !e.sync) throw new Error('deveria estar sincronizando');
+    await e.sync.ocioso();
+    await e.sync.sincronizar();
+    const planilha = [...google.planilhas.values()][0]!;
+    expect(planilha.metas).toHaveLength(1);
+    expect(planilha.tamanho).toBe(ana.loja.todosEventos.length);
+    expect(google.compartilhamentos).toEqual([[planilha.id, 'pessoa.b@exemplo.com']]);
+    expect(ana.loja.obterFoto().estado.config).toMatchObject({ emailA: 'pessoa.a@exemplo.com', emailB: 'pessoa.b@exemplo.com' });
+    expect(ana.armazem.meta.get('planilhaId')).toBe(planilha.id);
+    await expect(ana.sessao.conectarPlanilha('pessoa.b@exemplo.com')).rejects.toThrow('já está ligado');
+
+    const bruno = celular(google, 'pessoa.b@exemplo.com');
+    await bruno.sessao.iniciar();
+    await bruno.remoto.entrar();
+    const meta = await bruno.sessao.lerCofreDaPlanilha(planilha.id);
+    const f = await bruno.sessao.conferirFrase(meta, ana.palavras.join(' '));
+    if (!f.ok) throw new Error('frase certa deveria abrir');
+    await bruno.cofre.configurarPin(f.dek, '739154');
+    await bruno.sessao.entrarEmCofreExistente(f.dek, meta, planilha.id);
+    const eb = bruno.sessao.obter();
+    if (eb.fase !== 'aberto') throw new Error('deveria estar aberto');
+    expect(eb.loja.obterFoto().euSou).toBe('B');
+    expect(eb.loja.obterFoto().estado.despesas.map((d) => d.descricao)).toEqual(['Feira']);
+  });
+
+  it('recusa e-mail inválido ou igual ao da própria conta, sem criar planilha', async () => {
+    const google = new GoogleFalso();
+    const ana = await cofreLocal(google);
+    await expect(ana.sessao.conectarPlanilha('não é e-mail')).rejects.toThrow('e-mail Google');
+    await expect(ana.sessao.conectarPlanilha('pessoa.a@exemplo.com')).rejects.toThrow('diferente do seu');
+    expect(google.planilhas.size).toBe(0);
+  });
+
+  it('se não conseguir compartilhar, avisa (e continua conectado)', async () => {
+    const google = new GoogleFalso();
+    const ana = await cofreLocal(google);
+    ana.remoto.compartilhar = () => Promise.reject(new Error('falhou'));
+    const r = await ana.sessao.conectarPlanilha('pessoa.b@exemplo.com');
+    expect(r.compartilhou).toBe(false);
+    const e = ana.sessao.obter();
+    expect(e.fase === 'aberto' && e.sync !== null).toBe(true);
+  });
+
+  it('bloqueado, na demonstração ou sem Google: erro claro', async () => {
+    const google = new GoogleFalso();
+    const demo = celular(google, 'pessoa.a@exemplo.com');
+    await demo.sessao.entrarDemo();
+    await expect(demo.sessao.conectarPlanilha('pessoa.b@exemplo.com')).rejects.toThrow('Desbloqueie');
+    const semGoogle = new Sessao({ armazem: new ArmazemEmMemoria(), cofre: new Cofre(new ArmazemEmMemoria(), { iteracoes: 1000 }), repositorioDemo: new LocalEmMemoria() });
+    await semGoogle.iniciar();
+    await expect(semGoogle.conectarPlanilha('pessoa.b@exemplo.com')).rejects.toThrow('Desbloqueie');
+  });
+});
