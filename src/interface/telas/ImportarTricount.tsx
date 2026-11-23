@@ -16,7 +16,7 @@ import type { Pessoa } from '../../dominio/tipos.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos } from '../componentes/Basicos.tsx';
 import { hojeISO, mesDeHoje, useAvisar, useFoto, useLoja } from '../contexto.tsx';
 import { navegar } from '../rotas.ts';
-import { useModo } from '../sessaoContexto.tsx';
+import { useModo, useSincronizador } from '../sessaoContexto.tsx';
 
 /**
  * Importar o histórico do Tricount (especificação 9). O arquivo é lido só neste aparelho; nada é
@@ -32,6 +32,7 @@ export function ImportarTricount() {
   const [pessoaDe, setPessoaDe] = useState<Record<string, Pessoa>>({});
   const [categoriaDe, setCategoriaDe] = useState<Record<string, string>>({});
   const [confirmar, setConfirmar] = useState(false);
+  const sync = useSincronizador();
 
   const ativas = estado.categorias.filter((c) => c.ativa);
 
@@ -101,9 +102,9 @@ export function ImportarTricount() {
         </label>
         {analise && (
           <p className="ajuda">
-            {analise.linhas.filter((l) => l.tipo === 'despesa').length} despesas e{' '}
-            {analise.linhas.filter((l) => l.tipo === 'transferencia').length} transferências encontradas
-            {analise.ignoradas.length > 0 && ` · ${String(analise.ignoradas.length)} linhas ignoradas (totais e rodapé)`}.
+            {contar(analise.linhas.filter((l) => l.tipo === 'despesa').length, 'despesa', 'despesas')} e{' '}
+            {contar(analise.linhas.filter((l) => l.tipo === 'transferencia').length, 'transferência', 'transferências')} no arquivo
+            {analise.ignoradas.length > 0 && ` · ${contar(analise.ignoradas.length, 'linha ignorada', 'linhas ignoradas')} (totais e rodapé)`}.
           </p>
         )}
         {erro && <p className="erro" role="alert">{erro}</p>}
@@ -171,11 +172,18 @@ export function ImportarTricount() {
             Os meses anteriores a {nomeDaCompetencia(mesDeHoje())} entram como <strong>acertados</strong> (já foram resolvidos
             no Tricount). O que ainda está em aberto no Tricount entra como &ldquo;Saldo pendente do Tricount&rdquo; neste mês.
           </p>
-          <p className="saldo-frase">No fim do Tricount: {fraseDoSaldo(transferenciaDoSaldo(plano.saldoFinalA), estado.config)}</p>
+          <p>
+            No fim do Tricount: <strong>{fraseDoSaldo(transferenciaDoSaldo(plano.saldoFinalA), estado.config)}</strong>
+          </p>
           {plano.divididas > 0 && (
-            <p className="ajuda">{plano.divididas} despesas pagas pelos dois viraram duas cada (uma para quem pagou cada parte).</p>
+            <p className="ajuda">
+              {contar(plano.divididas, 'despesa paga pelos dois virou duas', 'despesas pagas pelos dois viraram duas cada')} (uma
+              para quem pagou cada parte).
+            </p>
           )}
-          {plano.jaImportadas > 0 && <p className="ajuda">{plano.jaImportadas} despesas já tinham sido importadas e serão puladas.</p>}
+          {plano.jaImportadas > 0 && (
+            <p className="ajuda">{contar(plano.jaImportadas, 'despesa já tinha sido importada e fica de fora', 'despesas já tinham sido importadas e ficam de fora')}.</p>
+          )}
           {plano.mesesJaFechados.length > 0 && (
             <p className="erro">
               Atenção: {plano.mesesJaFechados.map((c) => nomeDaCompetencia(c)).join(', ')} já estava acertado no app. As despesas
@@ -214,8 +222,8 @@ export function ImportarTricount() {
       <Janela aberta={confirmar} titulo="Importar o histórico?" aoFechar={() => { setConfirmar(false); }}>
         {plano && typeof plano !== 'string' && (
           <p>
-            Vão entrar {quantas} lançamentos e {plano.mesesFechar.length} meses acertados. Isso vai para o outro celular na
-            próxima sincronização.
+            Vão entrar {contar(quantas, 'lançamento', 'lançamentos')} e {contar(plano.mesesFechar.length, 'mês acertado', 'meses acertados')}.
+            {sync ? ' Isso vai para o outro celular na próxima sincronização.' : ''}
           </p>
         )}
         <AcoesJanela>
@@ -225,6 +233,11 @@ export function ImportarTricount() {
       </Janela>
     </main>
   );
+}
+
+/** "1 despesa", "3 despesas". */
+function contar(n: number, singular: string, plural: string): string {
+  return `${String(n)} ${n === 1 ? singular : plural}`;
 }
 
 /** Liga os nomes do Tricount aos do app pelo nome (sem acento/caixa); se não achar, na ordem do arquivo. */

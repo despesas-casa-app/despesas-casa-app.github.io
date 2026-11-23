@@ -76,7 +76,9 @@ Depois de clonar o repositório, ative os ganchos uma vez: `git config core.hook
 ```
 src/
   dominio/       Núcleo puro: dinheiro, divisão, saldo, competência, recorrentes, parcelas,
-                 eventos, merge/HLC, sugestões. SEM React, SEM rede, SEM armazenamento.
+                 eventos, merge/HLC, sugestões, backup CSV (exportacao.ts), leitor de CSV
+                 (csv.ts), importação do Tricount (importacaoTricount.ts).
+                 SEM React, SEM rede, SEM armazenamento.
                  O ESLint bloqueia imports de react/idb/interface e o uso de fetch, window etc.
                  Precisa de cobertura de testes alta.
   cripto/        Camada de criptografia isolada (WebCrypto). Testes: ida e volta, chave errada,
@@ -135,3 +137,11 @@ docs/            Especificação, guias do dono (docs/guias/) e manual.
 O dono pode criar `privado/termos-proibidos.txt` (nunca versionado) com nomes reais, e-mails e
 percentuais, um por linha. O verificador de segredos bloqueia commits que contenham esses termos,
 sem exibi-los. O Claude Code não precisa ler esse arquivo.
+
+## Importação do Tricount (Fase 4)
+
+- O dono tem o CSV real do Tricount fora do projeto. **Nunca** copie esse arquivo (nem trechos,
+  nomes ou valores dele) para o repositório. Os testes usam só CSVs inventados no mesmo formato
+  (`src/dominio/importacaoTricount.test.ts`).
+- Para conferir a regra com o arquivo real, só com autorização do dono e mostrando apenas contagens
+  e "bate / não bate", nunca dados.

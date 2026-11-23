@@ -332,6 +332,10 @@ categorias. Depois disso, cada categoria é editada individualmente.
   planilha no seletor (Picker) → digita a frase (conferida sem gravar nada) → biometria/PIN → o
   app baixa tudo e só fica se o e-mail da conta estiver entre os autorizados; se não estiver,
   apaga o que baixou. Quem é quem (Pessoa A/B) vem do e-mail.
+- **Cofre criado sem o Google, ligado depois** (Configurações → Google e sincronização →
+  "Conectar à planilha do Google"): pede o e-mail Google da outra pessoa, abre o login, cria a
+  planilha com os parâmetros do cofre que já existe, compartilha, grava os e-mails e sobe tudo o que
+  já foi lançado (cifrado). A frase-mestra continua a mesma.
 - A cada login, o e-mail da conta é conferido contra os autorizados; outra conta é desconectada.
 - **Identificadores do Google** (ID do cliente, chave do Picker, número do projeto) são públicos e
   ficam como *variables* do repositório no GitHub (usadas no build) e em `.env.local` no PC.
@@ -404,6 +408,26 @@ categorias. Depois disso, cada categoria é editada individualmente.
 - Antes de importar, mostrar uma prévia com mapeamento de colunas, de pessoas e de categorias.
 - Reembolsos/acertos do Tricount viram fechamentos. Meses importados ficam fechados.
 - O import alimenta a inteligência de sugestão.
+
+### Como ficou implementado (Fase 4)
+- **Formato lido:** o CSV que o Tricount exporta em português (colunas "Título", "Valor na moeda
+  padrão (BRL)", "Tipo de transação", "Categoria", "Pago por <nome>", "Impactado para <nome>",
+  "Data e hora" por extenso). As colunas são reconhecidas pelo cabeçalho, sem mapeamento manual.
+  Linhas de total e rodapé são puladas. Grupos com mais de 2 pessoas são recusados.
+- **Prévia:** quem é quem (sugerido pelo primeiro nome), categoria do app para cada categoria do
+  Tricount (sugerida por nome e sinônimos comuns; o que não casar vai para "Outros"), total por
+  mês, quais meses entram acertados e o saldo final do Tricount.
+- **Cada despesa** vira uma despesa do app com origem "importada", com o % calculado pelas partes
+  (2 casas). Se as duas pessoas pagaram a mesma despesa, ela vira duas (uma por quem pagou).
+- **Meses anteriores ao mês corrente** entram **fechados** (um acerto por mês, marcado como "trazido
+  do Tricount", sem inventar transferência). As transferências do Tricount não viram despesas: elas
+  entram só na conta do saldo.
+- **Saldo pendente:** o que ainda estava em aberto no fim do Tricount entra como a despesa
+  "Saldo pendente do Tricount" no mês corrente, para o saldo do app ficar **igual** ao do Tricount.
+- **Sem duplicar:** os ids são calculados a partir do conteúdo de cada linha; importar o mesmo
+  arquivo de novo não cria nada.
+- No histórico de atividade, a importação aparece numa linha só.
+- Só no cofre real (não na demonstração, que não é criptografada).
 
 ---
 
