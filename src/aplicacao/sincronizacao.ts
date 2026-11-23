@@ -68,7 +68,8 @@ export class Sincronizador {
   private readonly agora: () => number;
 
   constructor(private readonly deps: DependenciasSincronizacao) {
-    this.online = deps.online ?? (() => (typeof navigator === 'undefined' ? true : navigator.onLine));
+    // Só considera "sem internet" quando o navegador diz isso explicitamente.
+    this.online = deps.online ?? (() => typeof navigator === 'undefined' || (navigator as { onLine?: boolean }).onLine !== false);
     this.agora = deps.agora ?? (() => Date.now());
   }
 

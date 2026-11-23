@@ -139,11 +139,11 @@ export class Cofre {
     return dek;
   }
 
-  /** Grava a DEK embrulhada por uma frase (criação ou troca de frase). */
-  private async gravarMetaDaFrase(dek: CryptoKey, palavras: readonly string[]): Promise<void> {
+  /** Gera os parâmetros do cofre (a DEK embrulhada por uma frase), sem gravar. */
+  async gerarMeta(dek: CryptoKey, palavras: readonly string[]): Promise<MetaCofre> {
     const salt = novoSalt();
     const kek = await derivarChaveDeSegredo(fraseCanonica(palavras), deBase64(salt), this.iteracoes);
-    const meta: MetaCofre = {
+    return {
       versao: 1,
       kdf: 'PBKDF2-SHA256',
       iteracoes: this.iteracoes,
@@ -151,11 +151,32 @@ export class Cofre {
       dek: await embrulharDek(dek, kek, 'frase'),
       criadoEm: new Date().toISOString(),
     };
+  }
+
+  /** Grava os parâmetros do cofre neste aparelho (a partir daí o cofre "existe"). */
+  async salvarMeta(meta: MetaCofre): Promise<void> {
     await this.armazem.gravarMeta(CHAVE_COFRE, JSON.stringify(meta));
+  }
+
+  /** Grava a DEK embrulhada por uma frase (criação ou troca de frase). */
+  private async gravarMetaDaFrase(dek: CryptoKey, palavras: readonly string[]): Promise<void> {
+    await this.salvarMeta(await this.gerarMeta(dek, palavras));
   }
 
   /** Abre a DEK com a frase-mestra (aparelho novo, depois de 10 PINs errados, recuperação). */
   async abrirComFrase(texto: string): Promise<ResultadoFraseDigitada> {
+    return this.abrirMetaComFrase(await this.meta(), texto, true);
+  }
+
+  /**
+   * Confere a frase contra parâmetros vindos de fora (a planilha, quando a 2ª pessoa entra ou num
+   * celular novo), sem gravar nada.
+   */
+  async conferirFrase(meta: MetaCofre, texto: string): Promise<ResultadoFraseDigitada> {
+    return this.abrirMetaComFrase(meta, texto, false);
+  }
+
+  private async abrirMetaComFrase(meta: MetaCofre | null, texto: string, zerarTentativas: boolean): Promise<ResultadoFraseDigitada> {
     const v = validarFrase(texto);
     if (!v.ok) {
       return {
@@ -167,12 +188,11 @@ export class Cofre {
             : `A palavra ${String(v.posicao)} ("${v.digitada}") não está na lista.`,
       };
     }
-    const meta = await this.meta();
     if (!meta) return { ok: false, motivo: 'nao-confere' };
     try {
       const kek = await derivarChaveDeSegredo(fraseCanonica(v.palavras), deBase64(meta.salt), meta.iteracoes);
       const dek = await desembrulharDek(meta.dek, kek, 'frase');
-      await this.armazem.gravarMeta(CHAVE_TENTATIVAS, '0');
+      if (zerarTentativas) await this.armazem.gravarMeta(CHAVE_TENTATIVAS, '0');
       return { ok: true, dek };
     } catch (e) {
       if (e instanceof ErroDeCriptografia) return { ok: false, motivo: 'nao-confere' };
