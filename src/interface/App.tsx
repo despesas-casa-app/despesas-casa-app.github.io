@@ -17,6 +17,7 @@ import { Categorias } from './telas/Categorias.tsx';
 import { Configuracoes } from './telas/Configuracoes.tsx';
 import { Despesas } from './telas/Despesas.tsx';
 import { EditarDespesa } from './telas/EditarDespesa.tsx';
+import { ImportarTricount } from './telas/ImportarTricount.tsx';
 import { Inicio } from './telas/Inicio.tsx';
 import { Mais } from './telas/Mais.tsx';
 import { Recorrentes } from './telas/Recorrentes.tsx';
@@ -46,6 +47,8 @@ function Tela({ rota }: { rota: Rota }) {
       return <Atividade />;
     case 'configuracoes':
       return <Configuracoes />;
+    case 'importar-tricount':
+      return <ImportarTricount />;
   }
 }
 
@@ -58,7 +61,7 @@ const ABAS: readonly { tela: Rota['tela']; rota: Rota; icone: NomeIcone; texto: 
     rota: { tela: 'mais' },
     icone: 'menu',
     texto: 'Mais',
-    grupo: ['mais', 'acertar', 'categorias', 'recorrentes', 'atividade', 'configuracoes'],
+    grupo: ['mais', 'acertar', 'categorias', 'recorrentes', 'atividade', 'configuracoes', 'importar-tricount'],
   },
 ];
 

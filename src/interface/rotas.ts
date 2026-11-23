@@ -16,7 +16,8 @@ export type Rota =
   | { readonly tela: 'categorias' }
   | { readonly tela: 'recorrentes' }
   | { readonly tela: 'atividade' }
-  | { readonly tela: 'configuracoes' };
+  | { readonly tela: 'configuracoes' }
+  | { readonly tela: 'importar-tricount' };
 
 export function lerRota(hash: string): Rota {
   const [caminho = '', consulta = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -42,6 +43,7 @@ export function lerRota(hash: string): Rota {
     case 'recorrentes':
     case 'atividade':
     case 'configuracoes':
+    case 'importar-tricount':
       return { tela: partes[0] };
     default:
       return { tela: 'inicio' };

@@ -100,7 +100,15 @@ export function Configuracoes() {
               Página de recuperação (funciona sem internet)
             </a>
           </li>
-          <li><span className="link-linha desativado">Importar do Tricount · em breve</span></li>
+          <li>
+            {modo === 'real' ? (
+              <button type="button" className="link-linha" onClick={() => { navegar({ tela: 'importar-tricount' }); }}>
+                Importar histórico do Tricount
+              </button>
+            ) : (
+              <span className="link-linha desativado">Importar do Tricount · só no cofre de vocês</span>
+            )}
+          </li>
         </ul>
       </section>
 
