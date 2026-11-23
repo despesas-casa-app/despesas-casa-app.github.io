@@ -48,7 +48,7 @@ Instruções permanentes para o Claude Code neste projeto. Leia inteiro antes de
 |---|---|
 | `npm install` | Instala as dependências (sem rodar scripts de terceiros — ver `.npmrc`) |
 | `npm run dev` | Abre o app no PC para desenvolvimento |
-| `npm run build` | Gera o site final em `dist/` (inclui checagem de tipos) |
+| `npm run build` | Gera o site final em `dist/` (tipos + página de recuperação + app) |
 | `npm run preview` | Serve o `dist/` localmente para conferir o build |
 | `npm test` | Roda os testes (Vitest) |
 | `npm run test:cobertura` | Testes + cobertura (mínimo de 95% em `src/dominio` e `src/cripto`) |
@@ -94,6 +94,8 @@ src/
                  demo.ts gera os dados FICTÍCIOS do modo demonstração.
   google/        Login (GIS, token só em memória), planilha (Sheets, só acréscimo), Drive
                  (e-mail da conta, compartilhar) e Picker. Implementa aplicacao/servicoRemoto.ts.
+  recuperacao/   Página de recuperação offline (recuperacao.html na raiz + pagina.ts + recuperar.ts).
+                 Montada por vite.recuperacao.config.ts como UM arquivo, com connect-src 'none'.
   interface/     Telas React (telas/ e componentes/). Só conversa com a loja e o domínio.
                  Navegação por "#" (rotas.ts). Gráficos em SVG feito à mão.
   main.tsx       Ponto de entrada; recusa rodar dentro de iframe (proteção contra clickjacking).

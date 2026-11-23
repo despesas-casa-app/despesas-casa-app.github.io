@@ -388,8 +388,12 @@ categorias. Depois disso, cada categoria é editada individualmente.
   frequência de categoria, % e quem pagou.
 - Só ensinam os lançamentos feitos à mão (e os importados). Parcelas e recorrentes, que entram
   sozinhas, não contam — senão um sofá em 10x viraria "a compra mais frequente".
-- Busca aproximada (sem acento, sem caixa, tokens, prefixos).
-- Ranking por frequência e recência.
+- Busca aproximada (sem acento, sem caixa, tokens, prefixos), tolerando **um erro de digitação**
+  em palavras de 4+ letras ("mercdo" acha "Mercado"); o acerto exato vem antes.
+- Ranking por frequência e recência (meia-vida de 90 dias: o uso recente pesa mais).
+- Descrição nova: a categoria é **prevista pelas palavras** já usadas ("Padaria do bairro" → a
+  categoria de "Padaria"), só quando há confiança (≥ 60% dos votos). Nunca sobrescreve uma
+  categoria escolhida à mão.
 - Roda 100% no aparelho. Nenhuma API externa.
 
 ---
@@ -408,6 +412,17 @@ categorias. Depois disso, cada categoria é editada individualmente.
 - Recebe os CSVs das abas `meta` e `eventos`, baixados do Drive, mais a frase-mestra.
 - Gera um CSV/XLSX legível com todas as despesas.
 - Tudo acontece no navegador. Nenhuma requisição de rede.
+- Implementação (Fase 4): é **um único arquivo HTML** com todo o código dentro (dá para salvar no
+  computador e usar mesmo se o site sair do ar). A CSP da página proíbe qualquer conexão
+  (`connect-src 'none'`). Aceita os dois CSVs de uma vez e reconhece qual é qual pelo cabeçalho.
+  Gera os mesmos CSVs do backup legível (despesas e acertos). Linhas que não abrem são contadas.
+
+### Backup legível (Configurações → Dados)
+- Dois CSVs gerados no aparelho: **despesas** (data, mês, descrição, categoria, valor, quem pagou,
+  % e parte de cada um, tipo, situação, quem lançou/alterou, id) e **acertos** (mês, total, quem
+  transferiu para quem, valor, data, quem acertou).
+- Formato do Excel/Google Planilhas em português: separador `;`, vírgula decimal, datas
+  dd/mm/aaaa, UTF-8 com BOM. (XLSX fica para depois, se fizer falta.)
 
 ---
 
