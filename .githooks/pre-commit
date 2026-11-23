@@ -1,0 +1,3 @@
+#!/bin/sh
+# Bloqueia o commit se houver segredo ou dado pessoal nos arquivos preparados.
+exec node scripts/verificar-segredos.mjs --preparados
