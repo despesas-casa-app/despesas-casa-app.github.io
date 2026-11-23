@@ -32,7 +32,7 @@ export function App() {
     <main className="pagina">
       <header className="topo">
         <img className="topo-icone" src={`${import.meta.env.BASE_URL}icone.svg`} alt="" />
-        <h1>Despesas da Casa</h1>
+        <h1>Viver Gasta</h1>
       </header>
 
       <section className="cartao">

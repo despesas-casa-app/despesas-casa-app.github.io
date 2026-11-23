@@ -1,4 +1,4 @@
-# CLAUDE.md — App de Despesas da Casa
+# CLAUDE.md — Viver Gasta (app de despesas da casa)
 
 Instruções permanentes para o Claude Code neste projeto. Leia inteiro antes de trabalhar.
 

@@ -1,4 +1,8 @@
-# Especificação — App de Despesas da Casa
+# Especificação — Viver Gasta (app de despesas da casa)
+
+> **Nome e identidade:** o app se chama **Viver Gasta**, inspirado numa frase de Ida Feldman.
+> O ícone são **azulejos amarelos esmaltados** com rejunte claro; o amarelo do azulejo é a cor
+> de destaque da interface.
 
 > Documento de referência do produto. Toda evolução do app deve respeitar este documento
 > e atualizá-lo quando uma decisão mudar.
