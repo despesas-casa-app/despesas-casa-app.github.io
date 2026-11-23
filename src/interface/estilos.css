@@ -1515,3 +1515,26 @@ a.botao {
   text-decoration: none;
   color: inherit;
 }
+
+.barras-h-botao {
+  display: block;
+  width: 100%;
+  padding: 6px 4px;
+  margin: -6px -4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+
+.barras-h-botao:hover,
+.barras-h-botao:focus-visible {
+  background: var(--superficie-2);
+}
+
+.barras-h-detalhe {
+  display: block;
+  margin-top: 2px;
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+}

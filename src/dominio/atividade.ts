@@ -15,6 +15,8 @@ export interface ItemAtividade {
   readonly instante: number;
   readonly hlc: string;
   readonly autor: string;
+  /** Quem fez (A ou B), para filtrar. */
+  readonly pessoa: Evento['autor'];
   readonly entidade: Evento['entidade'];
   readonly entidadeId: string;
   readonly textos: readonly string[];
@@ -63,6 +65,7 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
       instante: instanteDoHlc(e.hlc),
       hlc: e.hlc,
       autor: quem,
+      pessoa: e.autor,
       entidade: e.entidade,
       entidadeId: e.entidadeId,
       textos,

@@ -340,3 +340,22 @@ describe('backup legível (CSV)', () => {
     ]);
   });
 });
+
+describe('relatórios: comparação por categoria', () => {
+  it('compara com o mês anterior e com a média dos 6 meses anteriores', async () => {
+    const { comparacaoPorCategoria, variacao } = await import('./relatorios.ts');
+    const ana = novaCasa('2026-11-20');
+    lancar(ana, { valor: 12000, cat: 'Outros' });
+    lancar(ana, { valor: 10000, cat: 'Outros', data: '2026-10-08', competencia: '2026-10' });
+    lancar(ana, { valor: 2000, cat: 'Outros', data: '2026-09-08', competencia: '2026-09' });
+    lancar(ana, { valor: 5000, cat: 'Carro', data: '2026-10-09', competencia: '2026-10' });
+    const r = comparacaoPorCategoria(ana.estado(), LIVRO_CASA, '2026-11');
+    expect(r.map((x) => [x.categoria?.nome, x.total, x.anterior, x.media])).toEqual([
+      ['Outros', 12000, 10000, 2000],
+      ['Carro', 0, 5000, 833],
+    ]);
+    expect(variacao(12000, 10000)).toBe(20);
+    expect(variacao(0, 5000)).toBe(-100);
+    expect(variacao(100, 0)).toBeNull();
+  });
+});

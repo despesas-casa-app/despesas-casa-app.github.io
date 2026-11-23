@@ -17,10 +17,10 @@ function tituloDoDia(data: string): string {
   return `${DIAS[d.getDay()] ?? ''}, ${formatarData(data).slice(0, 5)}`;
 }
 
-export function Despesas() {
+export function Despesas({ categoriaInicial = '' }: { categoriaInicial?: string }) {
   const { estado } = useFoto();
   const { mes, definirMes } = useMes();
-  const [categoriaId, setCategoriaId] = useState('');
+  const [categoriaId, setCategoriaId] = useState(categoriaInicial);
   const [pessoa, setPessoa] = useState<'todos' | Pessoa>('todos');
 
   const todas = despesasDoMes(estado, LIVRO_CASA, mes);
@@ -31,7 +31,7 @@ export function Despesas() {
   const porDia = new Map<string, Despesa[]>();
   for (const d of filtradas) porDia.set(d.data, [...(porDia.get(d.data) ?? []), d]);
   const fechado = mesFechado(estado, LIVRO_CASA, mes);
-  const categoriasDoMes = estado.categorias.filter((c) => todas.some((d) => d.categoriaId === c.id));
+  const categoriasDoMes = estado.categorias.filter((c) => c.id === categoriaId || todas.some((d) => d.categoriaId === c.id));
 
   return (
     <main className="tela">

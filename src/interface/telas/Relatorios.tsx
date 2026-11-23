@@ -1,15 +1,24 @@
-import { nomeCurtoDaCompetencia, nomeDaCompetencia } from '../../dominio/competencia.ts';
+import { nomeCurtoDaCompetencia, nomeDaCompetencia, nomeDoMes, somarMeses } from '../../dominio/competencia.ts';
 import { resumoDoMes } from '../../dominio/fechamento.ts';
-import { gastoPorCategoria, totaisPorMes } from '../../dominio/relatorios.ts';
+import { comparacaoPorCategoria, totaisPorMes, variacao } from '../../dominio/relatorios.ts';
 import { LIVRO_CASA } from '../../dominio/tipos.ts';
 import { Cabecalho, Reais, SeletorMes, Vazio } from '../componentes/Basicos.tsx';
 import { BarrasHorizontais, Colunas } from '../componentes/Graficos.tsx';
 import { useFoto, useMes } from '../contexto.tsx';
+import { navegar } from '../rotas.ts';
+
+function textoVariacao(total: number, anterior: number, mesAnterior: string): string {
+  const v = variacao(total, anterior);
+  if (v === null) return anterior === 0 && total > 0 ? `novo em relação a ${mesAnterior}` : '';
+  if (v === 0) return `igual a ${mesAnterior}`;
+  return `${v > 0 ? '▲' : '▼'} ${String(Math.abs(v))}% vs. ${mesAnterior}`;
+}
 
 export function Relatorios() {
   const { estado } = useFoto();
   const { mes, definirMes } = useMes();
-  const porCategoria = gastoPorCategoria(estado, LIVRO_CASA, mes);
+  const porCategoria = comparacaoPorCategoria(estado, LIVRO_CASA, mes);
+  const mesAnterior = nomeDoMes(somarMeses(mes, -1));
   const meses = totaisPorMes(estado, LIVRO_CASA, mes, 6);
   const resumo = resumoDoMes(estado, LIVRO_CASA, mes);
   const { nomeA, nomeB } = estado.config;
@@ -23,6 +32,7 @@ export function Relatorios() {
 
       <section className="secao cartao">
         <h2>Gasto por categoria</h2>
+        <p className="ajuda">Toque numa categoria para ver as despesas dela.</p>
         {porCategoria.length === 0 ? (
           <Vazio>Sem despesas em {nomeDaCompetencia(mes)}.</Vazio>
         ) : (
@@ -33,6 +43,8 @@ export function Relatorios() {
               valor: g.total,
               cor: g.categoria?.cor ?? '#999',
               icone: g.categoria?.icone ?? '',
+              detalhe: textoVariacao(g.total, g.anterior, mesAnterior),
+              aoTocar: () => { navegar({ tela: 'despesas', categoriaId: g.categoriaId }); },
             }))}
           />
         )}

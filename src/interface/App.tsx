@@ -27,7 +27,7 @@ function Tela({ rota }: { rota: Rota }) {
     case 'inicio':
       return <Inicio />;
     case 'despesas':
-      return <Despesas />;
+      return <Despesas key={rota.categoriaId ?? ''} categoriaInicial={rota.categoriaId ?? ''} />;
     case 'nova':
       return <EditarDespesa key={`nova-${rota.modo}`} modoInicial={rota.modo} />;
     case 'editar':

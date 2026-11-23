@@ -7,7 +7,7 @@ import { flushSync } from 'react-dom';
  */
 export type Rota =
   | { readonly tela: 'inicio' }
-  | { readonly tela: 'despesas' }
+  | { readonly tela: 'despesas'; readonly categoriaId?: string }
   | { readonly tela: 'nova'; readonly modo: 'unica' | 'parcelado' | 'recorrente' }
   | { readonly tela: 'editar'; readonly id: string }
   | { readonly tela: 'relatorios' }
@@ -23,8 +23,10 @@ export function lerRota(hash: string): Rota {
   const partes = caminho.split('/').filter(Boolean);
   const params = new URLSearchParams(consulta);
   switch (partes[0]) {
-    case 'despesas':
-      return { tela: 'despesas' };
+    case 'despesas': {
+      const categoriaId = params.get('categoria');
+      return categoriaId ? { tela: 'despesas', categoriaId } : { tela: 'despesas' };
+    }
     case 'despesa': {
       const id = partes[1];
       if (!id || id === 'nova') {
@@ -54,6 +56,8 @@ export function hashDaRota(r: Rota): string {
       return r.modo === 'unica' ? '#/despesa/nova' : `#/despesa/nova?modo=${r.modo}`;
     case 'editar':
       return `#/despesa/${encodeURIComponent(r.id)}`;
+    case 'despesas':
+      return r.categoriaId ? `#/despesas?categoria=${encodeURIComponent(r.categoriaId)}` : '#/despesas';
     default:
       return `#/${r.tela}`;
   }

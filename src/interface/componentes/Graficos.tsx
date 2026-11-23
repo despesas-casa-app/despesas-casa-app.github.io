@@ -7,6 +7,9 @@ export interface Barra {
   readonly valor: number;
   readonly cor: string;
   readonly icone?: string;
+  /** Texto pequeno embaixo da barra (ex.: "▲ 12% vs. outubro"). */
+  readonly detalhe?: string;
+  readonly aoTocar?: () => void;
 }
 
 /** Barras horizontais: uma por linha, com rótulo e valor. */
@@ -17,8 +20,9 @@ export function BarrasHorizontais({ barras, titulo }: { barras: readonly Barra[]
     <figure className="grafico">
       <figcaption className="visualmente-oculto">{titulo}</figcaption>
       <ul className="barras-h">
-        {barras.map((b) => (
-          <li key={b.rotulo}>
+        {barras.map((b) => {
+          const conteudo = (
+            <>
             <div className="barras-h-texto">
               <span>
                 {b.icone && <span aria-hidden="true">{b.icone} </span>}
@@ -31,10 +35,23 @@ export function BarrasHorizontais({ barras, titulo }: { barras: readonly Barra[]
             </div>
             <svg className="barras-h-svg" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true">
               <rect x="0" y="0" width="100" height="6" rx="3" className="trilho" />
-              <rect x="0" y="0" width={Math.max(1.5, (b.valor / maximo) * 100)} height="6" rx="3" fill={b.cor} />
+              {b.valor > 0 && <rect x="0" y="0" width={Math.max(1.5, (b.valor / maximo) * 100)} height="6" rx="3" fill={b.cor} />}
             </svg>
-          </li>
-        ))}
+            {b.detalhe && <small className="barras-h-detalhe">{b.detalhe}</small>}
+            </>
+          );
+          return (
+            <li key={b.rotulo}>
+              {b.aoTocar ? (
+                <button type="button" className="barras-h-botao" onClick={b.aoTocar}>
+                  {conteudo}
+                </button>
+              ) : (
+                conteudo
+              )}
+            </li>
+          );
+        })}
       </ul>
     </figure>
   );

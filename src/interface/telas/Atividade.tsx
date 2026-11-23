@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { gerarAtividade, type ItemAtividade } from '../../dominio/atividade.ts';
 import { dataLocal, formatarData } from '../../dominio/competencia.ts';
-import { Cabecalho, Vazio } from '../componentes/Basicos.tsx';
+import type { Pessoa } from '../../dominio/tipos.ts';
+import { Cabecalho, Segmentos, Vazio } from '../componentes/Basicos.tsx';
 import { useFoto } from '../contexto.tsx';
 import { navegar } from '../rotas.ts';
 
@@ -19,7 +20,9 @@ function tituloDoDia(dia: string): string {
 export function Atividade() {
   const { estado } = useFoto();
   const [limite, setLimite] = useState(POR_PAGINA);
-  const itens = useMemo(() => gerarAtividade(estado.projecao.eventos, estado.config), [estado]);
+  const [pessoa, setPessoa] = useState<'todos' | Pessoa>('todos');
+  const todos = useMemo(() => gerarAtividade(estado.projecao.eventos, estado.config), [estado]);
+  const itens = pessoa === 'todos' ? todos : todos.filter((i) => i.pessoa === pessoa);
   const visiveis = itens.slice(0, limite);
 
   const porDia = new Map<string, ItemAtividade[]>();
@@ -31,6 +34,16 @@ export function Atividade() {
   return (
     <main className="tela">
       <Cabecalho titulo="Atividade" comVoltar />
+      <Segmentos
+        rotulo="Filtrar por quem fez"
+        opcoes={[
+          { valor: 'todos', texto: 'Todos' },
+          { valor: 'A', texto: estado.config.nomeA },
+          { valor: 'B', texto: estado.config.nomeB },
+        ]}
+        valor={pessoa}
+        aoMudar={(p) => { setPessoa(p); setLimite(POR_PAGINA); }}
+      />
       {itens.length === 0 && <Vazio>Nada ainda.</Vazio>}
       {[...porDia.entries()].map(([dia, lista]) => (
         <section key={dia} className="grupo-dia">
