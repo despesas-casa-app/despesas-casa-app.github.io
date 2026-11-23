@@ -68,17 +68,34 @@ o acesso a ele, recuperar a conta fica difícil.
 ### 2.1 Exigir 2 etapas na organização
 
 1. Na página da organização, clique em **Settings** (aba no topo).
-2. No menu da esquerda, em **Security**, clique em **Authentication security**.
+2. No menu da esquerda, desça até o grupo **Security and quality** e clique em
+   **Authentication security**.
 3. Marque **Require two-factor authentication for everyone in the … organization**.
 4. Clique em **Save**.
 
 ### 2.2 Limitar as ações automáticas
 
-1. Ainda em **Settings** da organização, no menu da esquerda: **Actions** → **General**.
-2. Em **Policies**, escolha **Allow … and select non-…, actions and reusable workflows** e
-   marque **Allow actions created by GitHub**. Clique em **Save**.
-3. Mais abaixo, em **Workflow permissions**, escolha **Read repository contents and packages
-   permissions** e clique em **Save**.
+> **Atenção:** o item **Policies** que aparece no alto do menu da esquerda (logo abaixo de
+> **General**) **não** é o que usamos aqui — ele só mostra "You haven't created any policies" e
+> pode ser ignorado. A seção que importa fica **dentro** de **Actions**.
+
+1. Ainda em **Settings** da organização, desça o menu da esquerda até o grupo
+   **Code, planning, and automation**.
+2. Clique em **Actions** para abrir o submenu e depois em **General** (o primeiro item abaixo de
+   **Actions**).
+3. No topo da página, em **General actions permissions** → **Policies**:
+   - escolha **Allow despesas-casa-app, and select non-despesas-casa-app, actions and reusable
+     workflows** (o nome da sua organização aparece no lugar de `despesas-casa-app`);
+   - nas opções que aparecem logo abaixo, marque **Allow actions created by GitHub**;
+   - marque também **Require actions to be pinned to a full-length commit SHA** (o nosso roteiro
+     de publicação já segue essa regra);
+   - clique no **Save** dessa seção.
+4. Desça até o fim da página, em **Workflow permissions**:
+   - escolha **Read repository contents and packages permissions**;
+   - deixe **desmarcado** **Allow GitHub Actions to create and approve pull requests**;
+   - clique no **Save** dessa seção.
+
+Cada seção da página tem o próprio botão **Save**: salve uma de cada vez.
 
 ---
 
