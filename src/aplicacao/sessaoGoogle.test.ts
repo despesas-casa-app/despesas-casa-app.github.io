@@ -226,3 +226,13 @@ describe('"Toque para sincronizar" e troca de frase', () => {
     expect(ana.remoto.conectado).toBe(false);
   });
 });
+
+describe('aviso inicial', () => {
+  it('é mostrado uma única vez', () => {
+    const s = new Sessao({ armazem: new ArmazemEmMemoria(), cofre: new Cofre(new ArmazemEmMemoria()), repositorioDemo: new LocalEmMemoria() });
+    expect(s.tomarAvisoInicial()).toBeNull();
+    s.definirAvisoInicial('olá');
+    expect(s.tomarAvisoInicial()).toBe('olá');
+    expect(s.tomarAvisoInicial()).toBeNull();
+  });
+});

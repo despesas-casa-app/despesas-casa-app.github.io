@@ -82,6 +82,7 @@ export class Sessao {
   private dek: CryptoKey | null = null;
   private pararSync: (() => void) | null = null;
   private planilha: PlanilhaDoCasal | null = null;
+  private avisoInicial: string | null = null;
 
   constructor(private readonly deps: DependenciasSessao) {
     this.agora = deps.agora ?? (() => Date.now());
@@ -246,6 +247,18 @@ export class Sessao {
       throw new ContaNaoAutorizada(email);
     }
     await sync.sincronizar();
+  }
+
+  /** Guarda uma mensagem para mostrar uma única vez quando o app abrir (depois de criar o cofre). */
+  definirAvisoInicial(texto: string): void {
+    this.avisoInicial = texto;
+  }
+
+  /** Devolve a mensagem guardada (e a esquece). */
+  tomarAvisoInicial(): string | null {
+    const t = this.avisoInicial;
+    this.avisoInicial = null;
+    return t;
   }
 
   /** Nome de quem usa este aparelho (para a passkey). */
