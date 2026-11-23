@@ -4,6 +4,8 @@ import { Cofre } from './aplicacao/cofre.ts';
 import { Sessao } from './aplicacao/sessao.ts';
 import { ArmazemIndexedDb } from './armazenamento/cifrado.ts';
 import { LocalIndexedDb } from './armazenamento/local.ts';
+import { lerConfigGoogle } from './google/config.ts';
+import { ServicoGoogle } from './google/servico.ts';
 import { estaEmbutido } from './interface/protecao.ts';
 import { Raiz } from './interface/Raiz.tsx';
 import { ProvedorSessao } from './interface/sessaoContexto.tsx';
@@ -16,10 +18,15 @@ if (estaEmbutido(window)) {
 } else if (raiz) {
   // Banco real (só dados criptografados) e banco da demonstração (fictício), separados.
   const armazem = new ArmazemIndexedDb('viver-gasta');
+  // Google só quando configurado (variáveis públicas do GitHub / .env.local no PC).
+  const configGoogle = lerConfigGoogle();
   const sessao = new Sessao({
     armazem,
     cofre: new Cofre(armazem),
     repositorioDemo: new LocalIndexedDb('viver-gasta-demo'),
+    remoto: configGoogle ? new ServicoGoogle(configGoogle) : null,
+    janela: window,
+    documento: document,
   });
   createRoot(raiz).render(
     <StrictMode>

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components -- provedor e gancho juntos de propósito */
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
 import type { EstadoSessao, Sessao } from '../aplicacao/sessao.ts';
+import type { EstadoSincronizacao, Sincronizador } from '../aplicacao/sincronizacao.ts';
 
 const SessaoContexto = createContext<Sessao | null>(null);
 
@@ -23,4 +24,19 @@ export function useEstadoSessao(): EstadoSessao {
 export function useModo(): 'real' | 'demo' {
   const e = useEstadoSessao();
   return e.fase === 'aberto' ? e.modo : 'demo';
+}
+
+const nadaParaAssinar = (): (() => void) => () => undefined;
+const semEstado = (): null => null;
+
+/** O sincronizador do cofre aberto (null = sem planilha ou demonstração). */
+export function useSincronizador(): Sincronizador | null {
+  const e = useEstadoSessao();
+  return e.fase === 'aberto' ? e.sync : null;
+}
+
+/** Estado da sincronização para a interface (null = sem planilha). */
+export function useEstadoSincronizacao(): EstadoSincronizacao | null {
+  const sync = useSincronizador();
+  return useSyncExternalStore<EstadoSincronizacao | null>(sync ? sync.assinar : nadaParaAssinar, sync ? sync.obter : semEstado);
 }

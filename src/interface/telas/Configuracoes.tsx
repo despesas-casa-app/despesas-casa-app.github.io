@@ -4,6 +4,7 @@ import { definirNomes } from '../../dominio/config.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos } from '../componentes/Basicos.tsx';
 import { useAvisar, useFoto, useLoja } from '../contexto.tsx';
 import { navegar } from '../rotas.ts';
+import { SecaoGoogle } from '../seguranca/SecaoGoogle.tsx';
 import { SecaoSeguranca } from '../seguranca/SecaoSeguranca.tsx';
 import { useModo, useSessao } from '../sessaoContexto.tsx';
 
@@ -62,6 +63,7 @@ export function Configuracoes() {
         />
       </section>
 
+      {modo === 'real' && <SecaoGoogle />}
       {modo === 'real' && <SecaoSeguranca />}
 
       <section className="secao cartao">

@@ -7,9 +7,10 @@ import { formatarReais } from '../dominio/dinheiro.ts';
 import { LIVRO_CASA } from '../dominio/tipos.ts';
 import { Janela } from './componentes/Basicos.tsx';
 import { Icone, type NomeIcone } from './componentes/Icone.tsx';
+import { FaixaSincronizacao } from './componentes/IndicadorSync.tsx';
 import { useAvisar, useFoto, useLoja } from './contexto.tsx';
 import { navegar, useRota, type Rota } from './rotas.ts';
-import { useModo } from './sessaoContexto.tsx';
+import { useModo, useSessao } from './sessaoContexto.tsx';
 import { Acertar } from './telas/Acertar.tsx';
 import { Atividade } from './telas/Atividade.tsx';
 import { Categorias } from './telas/Categorias.tsx';
@@ -154,6 +155,25 @@ function AvisoMesFechado() {
   );
 }
 
+/** Mensagem única depois de criar o cofre (ex.: o que a outra pessoa precisa fazer). */
+function AvisoInicial() {
+  const sessao = useSessao();
+  const [texto, setTexto] = useState(() => sessao.tomarAvisoInicial());
+  if (!texto) return null;
+  return (
+    <Janela aberta titulo="Cofre criado!" aoFechar={() => { setTexto(null); }}>
+      {texto.split('\n').map((p) => (
+        <p key={p}>{p}</p>
+      ))}
+      <div className="janela-acoes">
+        <button type="button" className="botao botao-principal" onClick={() => { setTexto(null); }}>
+          Entendi
+        </button>
+      </div>
+    </Janela>
+  );
+}
+
 export function App() {
   const rota = useRota();
   const { carregado } = useFoto();
@@ -172,9 +192,11 @@ export function App() {
           <Icone nome="alerta" tamanho={14} /> Modo demonstração · dados fictícios, só neste aparelho
         </div>
       )}
+      <FaixaSincronizacao />
       <Tela rota={rota} />
       {rota.tela !== 'nova' && rota.tela !== 'editar' && <BarraNavegacao rota={rota} />}
       <AvisoMesFechado />
+      <AvisoInicial />
     </>
   );
 }

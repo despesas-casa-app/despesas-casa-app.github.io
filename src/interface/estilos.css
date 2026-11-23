@@ -1473,3 +1473,45 @@ h2 {
   border-color: var(--marca);
   color: var(--sobre-marca);
 }
+
+/* ---------- Sincronização ---------- */
+
+.faixa-sync {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+  border: 0;
+  background: var(--marca);
+  color: var(--sobre-marca);
+  font-weight: 700;
+  text-align: center;
+}
+
+.faixa-sync small {
+  font-weight: 500;
+}
+
+.faixa-sync-erro {
+  background: var(--alerta-fundo);
+  color: var(--alerta);
+}
+
+.indicador-botao {
+  cursor: pointer;
+  background: var(--marca-clara);
+  color: var(--texto);
+}
+
+.ponto-ok {
+  background: var(--ok);
+}
+
+.ponto-erro {
+  background: var(--perigo);
+}
+
+a.botao {
+  text-decoration: none;
+  color: inherit;
+}

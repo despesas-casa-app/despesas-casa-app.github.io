@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { gerarDek } from '../../cripto/chaves.ts';
 import { gerarFrase, reconhecerPalavra } from '../../cripto/frase.ts';
+import { ehEmailValido, normalizarEmail } from '../../dominio/config.ts';
 import { formatarPercentual, lerPercentual } from '../../dominio/percentual.ts';
 import type { Pessoa } from '../../dominio/tipos.ts';
 import { Cabecalho, Segmentos } from '../componentes/Basicos.tsx';
 import { ConfigurarDesbloqueio } from '../seguranca/ConfigurarDesbloqueio.tsx';
 import { useSessao } from '../sessaoContexto.tsx';
 
-type Etapa = 'explicar' | 'mostrar' | 'conferir' | 'dados' | 'desbloqueio' | 'salvando';
+type Etapa = 'explicar' | 'google' | 'mostrar' | 'conferir' | 'dados' | 'desbloqueio' | 'salvando';
 
 /** Sorteia 3 posições diferentes (1 a 7) para conferir se a frase foi anotada. */
 function sortearPosicoes(): number[] {
@@ -22,9 +23,11 @@ function sortearPosicoes(): number[] {
 }
 
 /**
- * Criação do cofre neste aparelho (Fase 2; na Fase 3 entra também a planilha do Google):
- * 1. explicar · 2. mostrar a frase · 3. conferir 3 palavras · 4. nomes e divisão ·
- * 5. biometria (ou PIN) · 6. salvar.
+ * Criação do cofre pela 1ª pessoa (recomendado no PC):
+ * 1. explicar · 2. entrar com o Google · 3. mostrar a frase · 4. conferir 3 palavras ·
+ * 5. nomes, e-mail da outra pessoa e divisão · 6. biometria (ou PIN) ·
+ * 7. criar a planilha, compartilhar com a outra pessoa e abrir.
+ * Sem o Google configurado, o cofre fica só neste aparelho.
  *
  * A frase só existe na memória desta tela. Nada é gravado antes do último passo.
  */
@@ -39,7 +42,26 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
   const [nomeB, setNomeB] = useState('');
   const [euSou, setEuSou] = useState<Pessoa>('A');
   const [minhaParteTexto, setMinhaParteTexto] = useState('50');
+  const [meuEmail, setMeuEmail] = useState('');
+  const [outroEmail, setOutroEmail] = useState('');
+  const [ocupado, setOcupado] = useState(false);
   const dekPronta = useMemo(() => gerarDek(), []);
+  const remoto = sessao.remoto;
+
+  const entrarNoGoogle = (): void => {
+    if (!remoto) return;
+    setErro(null);
+    setOcupado(true);
+    remoto
+      .entrar()
+      .then(() => remoto.emailDaConta())
+      .then((email) => {
+        setMeuEmail(email);
+        gerar();
+      })
+      .catch((e: unknown) => { setErro(e instanceof Error ? e.message : 'Não foi possível entrar no Google.'); })
+      .finally(() => { setOcupado(false); });
+  };
 
   const gerar = (): void => {
     setPalavras(gerarFrase());
@@ -70,7 +92,11 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
           ? 'Os nomes precisam ser diferentes.'
           : minhaParte === null
             ? 'Percentual inválido. Use de 0 a 100, com até 2 casas.'
-            : null;
+            : remoto && !ehEmailValido(outroEmail)
+              ? `Informe o e-mail Google de ${outroNome.trim() || 'a outra pessoa'}.`
+              : remoto && normalizarEmail(outroEmail) === meuEmail
+                ? 'O e-mail da outra pessoa precisa ser diferente do seu.'
+                : null;
     setErro(problema);
     if (!problema) setEtapa('desbloqueio');
   };
@@ -80,13 +106,39 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
     setEtapa('salvando');
     try {
       const dek = await dekPronta;
-      await sessao.cofre.criar(palavras, dek);
-      await sessao.concluirCriacao(dek, {
-        nomeA,
-        nomeB,
-        euSou,
-        pctProporcional: euSou === 'A' ? minhaParte : 10000 - minhaParte,
-      });
+      const dados = { nomeA, nomeB, euSou, pctProporcional: euSou === 'A' ? minhaParte : 10000 - minhaParte };
+      if (!remoto) {
+        await sessao.cofre.criar(palavras, dek);
+        await sessao.concluirCriacao(dek, dados);
+        return;
+      }
+      // 1) planilha com os parâmetros do cofre; 2) compartilhar; 3) gravar aqui e abrir.
+      const outro = normalizarEmail(outroEmail);
+      const planilha = await remoto.criarPlanilha();
+      const meta = await sessao.cofre.gerarMeta(dek, palavras);
+      await planilha.anexarMetaCofre(meta);
+      let compartilhou = true;
+      try {
+        await remoto.compartilhar(planilha.id, outro);
+      } catch {
+        compartilhou = false;
+      }
+      await sessao.cofre.salvarMeta(meta);
+      const nomeOutro = outroNome.trim();
+      sessao.definirAvisoInicial(
+        [
+          compartilhou
+            ? `A planilha foi compartilhada com ${outro}. O Google manda um e-mail para ${nomeOutro} avisando.`
+            : `Não consegui compartilhar a planilha com ${outro}. Abra a planilha (Configurações → Abrir a planilha) e compartilhe com esse e-mail, como editor(a).`,
+          `No celular de ${nomeOutro}: abrir o app, tocar em "Já temos um cofre: entrar", entrar com a conta Google ${outro}, escolher a planilha "Viver Gasta" e digitar a frase-mestra.`,
+          'Dica: passe a frase para a outra pessoa pessoalmente (ou pelo papel), nunca por mensagem.',
+        ].join('\n'),
+      );
+      await sessao.concluirCriacao(
+        dek,
+        euSou === 'A' ? { ...dados, emailA: meuEmail, emailB: outro } : { ...dados, emailA: outro, emailB: meuEmail },
+        planilha.id,
+      );
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível criar o cofre.');
       setEtapa('dados');
@@ -112,14 +164,35 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
               perdidos, os dados se perdem também.
             </li>
           </ul>
-          <button type="button" className="botao botao-principal" onClick={gerar}>Sortear a frase</button>
+          <button type="button" className="botao botao-principal" onClick={() => { if (remoto) setEtapa('google'); else gerar(); }}>
+            {remoto ? 'Começar' : 'Sortear a frase'}
+          </button>
+          <button type="button" className="botao botao-texto" onClick={aoCancelar}>Voltar</button>
+        </section>
+      )}
+
+      {etapa === 'google' && (
+        <section className="passo">
+          <h2>2. Entre com a sua conta Google</h2>
+          <p>
+            O app vai criar uma planilha no seu Google Drive, onde ficam as despesas{' '}
+            <strong>criptografadas</strong>. É por ela que os dois celulares conversam.
+          </p>
+          <p className="ajuda">
+            O app só enxerga essa planilha: o resto do seu Drive continua invisível para ele. Se aparecer
+            "O Google não verificou este app", confira que o nome é Viver Gasta e toque em Continuar.
+          </p>
+          {erro && <p className="erro" role="alert">{erro}</p>}
+          <button type="button" className="botao botao-principal" disabled={ocupado} onClick={entrarNoGoogle}>
+            {ocupado ? 'Aguardando o Google…' : 'Entrar com o Google'}
+          </button>
           <button type="button" className="botao botao-texto" onClick={aoCancelar}>Voltar</button>
         </section>
       )}
 
       {etapa === 'mostrar' && (
         <section className="passo">
-          <h2>2. Anote a frase</h2>
+          <h2>{remoto ? '3' : '2'}. Anote a frase</h2>
           <ol className="frase-mostrada">
             {palavras.map((p, i) => (
               <li key={i}>
@@ -138,7 +211,7 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
 
       {etapa === 'conferir' && (
         <form className="passo formulario" onSubmit={(e) => { e.preventDefault(); conferir(); }}>
-          <h2>3. Confira o que você anotou</h2>
+          <h2>{remoto ? '4' : '3'}. Confira o que você anotou</h2>
           <p>Digite estas palavras da sua frase (as 4 primeiras letras bastam):</p>
           {posicoes.map((p) => (
             <div key={p} className="campo">
@@ -163,7 +236,8 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
 
       {etapa === 'dados' && (
         <form className="passo formulario" onSubmit={(e) => { e.preventDefault(); conferirDados(); }}>
-          <h2>4. Quem são vocês</h2>
+          <h2>{remoto ? '5' : '4'}. Quem são vocês</h2>
+          {meuEmail && <p className="ajuda">Sua conta Google: <strong>{meuEmail}</strong></p>}
           <div className="campo-duplo">
             <div className="campo">
               <label htmlFor="cofre-nome-a">Pessoa A</label>
@@ -186,6 +260,21 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
               aoMudar={setEuSou}
             />
           </div>
+          {remoto && (
+            <div className="campo">
+              <label htmlFor="cofre-email-outro">E-mail Google de {outroNome.trim() || 'a outra pessoa'}</label>
+              <input
+                id="cofre-email-outro"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                autoCapitalize="none"
+                value={outroEmail}
+                onChange={(e) => { setOutroEmail(e.target.value); }}
+              />
+              <p className="ajuda">A planilha será compartilhada com esse e-mail. Só essas duas contas conseguem entrar.</p>
+            </div>
+          )}
           <div className="campo">
             <label htmlFor="cofre-parte">Sua parte nas despesas da casa</label>
             <div className="linha-pct">
@@ -207,7 +296,7 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
 
       {etapa === 'desbloqueio' && (
         <section className="passo">
-          <h2>5. Como abrir o app neste celular</h2>
+          <h2>{remoto ? '6' : '5'}. Como abrir o app neste celular</h2>
           <ConfigurarDesbloqueio
             aoUsarBiometria={async () => { await sessao.cofre.configurarBiometria(await dekPronta, meuNome.trim()); }}
             aoUsarPin={async (pin) => { await sessao.cofre.configurarPin(await dekPronta, pin); }}
@@ -219,7 +308,7 @@ export function CriarCofre({ aoCancelar }: { aoCancelar: () => void }) {
 
       {etapa === 'salvando' && (
         <section className="passo centro" aria-busy="true">
-          <p>Protegendo os dados…</p>
+          <p>{remoto ? 'Criando a planilha e protegendo os dados…' : 'Protegendo os dados…'}</p>
         </section>
       )}
     </main>

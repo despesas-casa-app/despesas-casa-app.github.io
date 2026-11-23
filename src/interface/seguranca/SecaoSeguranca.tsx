@@ -53,7 +53,7 @@ export function SecaoSeguranca() {
     setOcupado(true);
     setErro(null);
     try {
-      const r = await sessao.cofre.trocarFrase(fraseAtual, nova);
+      const r = await sessao.trocarFrase(fraseAtual, nova);
       if (!r.ok) {
         setErro('A frase atual não confere. Nada foi mudado.');
         setPasso('atual');
@@ -61,6 +61,8 @@ export function SecaoSeguranca() {
       }
       fechar();
       avisar('Frase-mestra trocada. Guarde a nova e descarte a antiga.');
+    } catch (e) {
+      setErro(e instanceof Error ? `Não foi possível gravar a frase nova na planilha: ${e.message}` : 'Não foi possível trocar a frase.');
     } finally {
       setOcupado(false);
     }
