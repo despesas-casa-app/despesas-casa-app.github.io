@@ -43,11 +43,16 @@ export function Acertar() {
             <Icone nome="cadeado" tamanho={16} /> Acertado em {formatarData(fechamento.data)} por {nomeDe(config, fechamento.fechadoPor)}
           </p>
           <p className="saldo-frase">
-            {fechamento.transferenciaDe
-              ? `${nomeDe(config, fechamento.transferenciaDe)} transferiu ${formatarReais(fechamento.valorTransferencia)} para ${nomeDe(config, fechamento.transferenciaDe === 'A' ? 'B' : 'A')}`
-              : 'Ninguém devia nada'}
+            {fechamento.importado
+              ? 'Mês trazido do Tricount, onde já estava acertado'
+              : fechamento.transferenciaDe
+                ? `${nomeDe(config, fechamento.transferenciaDe)} transferiu ${formatarReais(fechamento.valorTransferencia)} para ${nomeDe(config, fechamento.transferenciaDe === 'A' ? 'B' : 'A')}`
+                : 'Ninguém devia nada'}
           </p>
           <p className="ajuda">Total do mês no acerto: {formatarReais(fechamento.totalGasto)}. Meses acertados ficam travados.</p>
+          {fechamento.importado && (
+            <p className="ajuda">O saldo que ficou em aberto no Tricount entrou como "Saldo pendente do Tricount" no mês da importação. Se reabrir este mês, ele volta a contar no saldo.</p>
+          )}
           <button type="button" className="botao" onClick={() => { setConfirmar('reabrir'); }}>
             Reabrir {nomeDaCompetencia(mes)}
           </button>

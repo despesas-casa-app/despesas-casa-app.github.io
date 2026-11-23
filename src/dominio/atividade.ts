@@ -47,6 +47,8 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
   const categorias = new Map<string, Campos>();
   const itens: ItemAtividade[] = [];
   const pessoa = (v: ValorCampo | undefined): string => (v === 'A' || v === 'B' ? nomeDe(config, v) : '—');
+  // Importação do Tricount: centenas de eventos seguidos viram uma linha só.
+  let lote: { indice: number; despesas: number; meses: number } | null = null;
 
   for (const e of ordenados) {
     const chave = chaveEntidade(e.entidade, e.entidadeId);
@@ -60,6 +62,15 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
     const quem = nomeDe(config, e.autor);
     const textos = descrever(e, antes, depois, quem, categorias, pessoa);
     if (textos.length === 0) continue;
+    const importado = !antes && (depois['origemTipo'] === 'importada' || (e.entidade === 'fechamento' && depois['importado'] === true));
+    const anterior = lote ? itens[lote.indice] : undefined;
+    if (importado && lote && anterior && lote.indice === itens.length - 1 && anterior.pessoa === e.autor) {
+      if (e.entidade === 'fechamento') lote.meses += 1;
+      else lote.despesas += 1;
+      itens[lote.indice] = { ...anterior, textos: [textoDoLote(quem, lote.despesas, lote.meses)] };
+      continue;
+    }
+    lote = importado ? { indice: itens.length, despesas: e.entidade === 'fechamento' ? 0 : 1, meses: e.entidade === 'fechamento' ? 1 : 0 } : null;
     itens.push({
       eventoId: e.id,
       instante: instanteDoHlc(e.hlc),
@@ -72,6 +83,14 @@ export function gerarAtividade(eventos: readonly Evento[], config: Config): Item
     });
   }
   return itens.reverse();
+}
+
+function textoDoLote(quem: string, despesas: number, meses: number): string {
+  const partes = [
+    despesas > 0 ? `${String(despesas)} ${despesas === 1 ? 'despesa' : 'despesas'}` : '',
+    meses > 0 ? `${String(meses)} ${meses === 1 ? 'mês acertado' : 'meses acertados'}` : '',
+  ].filter(Boolean);
+  return `${quem} importou do Tricount: ${partes.join(' e ')}`;
 }
 
 function descrever(
@@ -112,6 +131,7 @@ function descrever(
     case 'fechamento': {
       const mes = nomeDaCompetencia(texto(depois['competencia']));
       if (depois['status'] === 'aberto') return [`${quem} reabriu ${mes}`];
+      if (!antes && depois['importado'] === true) return [`${quem} importou o acerto de ${mes} do Tricount`];
       const de = depois['transferenciaDe'];
       const valor = depois['valorTransferencia'];
       if ((de === 'A' || de === 'B') && typeof valor === 'number' && valor > 0) {
@@ -142,6 +162,7 @@ function descreverDespesa(
         ? [`${nome} de ${mes} foi gerada e aguarda o valor`]
         : [`${nome} de ${mes} foi gerada automaticamente: ${reais(depois['valor'])}`];
     }
+    if (depois['origemTipo'] === 'importada') return [`${quem} importou ${nome} do Tricount: ${reais(depois['valor'])}`];
     return [`${quem} lançou ${nome}: ${reais(depois['valor'])}`];
   }
   if (e.campos['excluida'] === true) {

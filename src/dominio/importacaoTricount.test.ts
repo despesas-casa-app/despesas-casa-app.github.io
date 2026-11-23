@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { gerarAtividade } from './atividade.ts';
 import type { Estado } from './estado.ts';
 import { fechamentoDe, mesFechado } from './estado.ts';
 import { fecharMes } from './fechamento.ts';
@@ -194,7 +195,7 @@ describe('plano e eventos da importação', () => {
     expect(mesFechado(estado, LIVRO_CASA, '2026-09')).toBe(true);
     expect(mesFechado(estado, LIVRO_CASA, '2026-10')).toBe(true);
     expect(mesFechado(estado, LIVRO_CASA, '2026-11')).toBe(false);
-    expect(fechamentoDe(estado, LIVRO_CASA, '2026-09')?.totalGasto).toBe(110000);
+    expect(fechamentoDe(estado, LIVRO_CASA, '2026-09')).toMatchObject({ totalGasto: 110000, importado: true });
 
     // O mês em aberto fica exatamente com o saldo do Tricount
     const novembro = resumirMes('2026-11', estado.despesas.filter((d) => d.competencia === '2026-11' && !d.excluida));
@@ -291,5 +292,33 @@ describe('plano e eventos da importação', () => {
     ana.aplicar(gerarEventosImportacao(planejarImportacao(analise, opcoes(ana.estado(), analise), ana.estado()), ana.estado(), ana.ctx));
     expect(sugerir(ana.estado(), 'merc')[0]?.descricao).toBe('Mercado');
     expect(sugerir(ana.estado(), 'saldo pendente')[0]?.descricao).toBe('Saldo pendente do Tricount');
+  });
+});
+
+describe('atividade da importação', () => {
+  it('a importação aparece numa linha só, e cada despesa conta sua origem', () => {
+    const ana = novaCasa();
+    ana.avancarMinutos(5);
+    const analise = analisarTricount(CSV);
+    ana.aplicar(gerarEventosImportacao(planejarImportacao(analise, opcoes(ana.estado(), analise), ana.estado()), ana.estado(), ana.ctx));
+    const estado = ana.estado();
+    const feed = gerarAtividade(estado.projecao.eventos, estado.config);
+    expect(feed[0]?.textos).toEqual(['Ana importou do Tricount: 6 despesas e 2 meses acertados']);
+    expect(feed.filter((i) => i.textos.some((t) => t.includes('Tricount')))).toHaveLength(1);
+
+    const mercado = estado.despesas.find((d) => d.descricao === 'Mercado');
+    const linhaDoTempo = gerarAtividade(estado.projecao.eventos.filter((e) => e.entidadeId === mercado?.id), estado.config);
+    expect(linhaDoTempo[0]?.textos[0]).toMatch(/^Ana importou Mercado do Tricount: R\$\s100,00$/);
+    const fech = gerarAtividade(estado.projecao.eventos.filter((e) => e.entidade === 'fechamento').slice(0, 1), estado.config);
+    expect(fech[0]?.textos[0]).toMatch(/^Ana importou o acerto de setembro/i);
+  });
+
+  it('importação seguida só de acertos ou só de uma despesa', () => {
+    const ana = novaCasa();
+    const analise = analisarTricount([CABECALHO, LINHAS[0] ?? '', LINHAS[1] ?? ''].join('\n'));
+    ana.aplicar(gerarEventosImportacao(planejarImportacao(analise, opcoes(ana.estado(), analise), ana.estado()), ana.estado(), ana.ctx));
+    const estado = ana.estado();
+    const feed = gerarAtividade(estado.projecao.eventos, estado.config);
+    expect(feed[0]?.textos[0]).toBe('Ana importou do Tricount: 3 despesas e 1 mês acertado');
   });
 });

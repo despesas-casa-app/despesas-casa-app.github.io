@@ -98,7 +98,7 @@ export function csvAcertos(estado: Estado): string {
     linhas.push(
       linhaCsv([
         nomeDaCompetencia(f.competencia),
-        f.status === 'fechado' ? 'acertado' : 'reaberto',
+        f.status === 'fechado' ? (f.importado ? 'acertado no Tricount' : 'acertado') : 'reaberto',
         numeroReais(f.totalGasto),
         de ? nomeDe(config, de) : 'ninguém devia',
         de ? nomeDe(config, de === 'A' ? 'B' : 'A') : '',

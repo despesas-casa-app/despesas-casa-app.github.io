@@ -109,6 +109,8 @@ export interface Fechamento {
   readonly despesasContadas: readonly string[];
   readonly data: DataISO;
   readonly fechadoPor: Pessoa;
+  /** Mês trazido do Tricount: já estava acertado lá (a "transferência" é só a conta do mês). */
+  readonly importado: boolean;
 }
 
 export interface Estado {
@@ -265,6 +267,7 @@ function lerFechamento(r: Registro): Fechamento {
     despesasContadas: contadas === '' ? [] : contadas.split(','),
     data: texto(c, 'data'),
     fechadoPor: pessoa(c, 'fechadoPor'),
+    importado: booleano(c, 'importado', false),
   };
 }
 

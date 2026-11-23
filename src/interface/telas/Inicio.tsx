@@ -44,7 +44,9 @@ export function Inicio() {
               <Icone nome="cadeado" tamanho={16} /> Mês acertado em {formatarData(fechamento.data)}
             </p>
             <p className="saldo-frase">
-              {fechamento.transferenciaDe
+              {fechamento.importado
+              ? 'Mês trazido do Tricount, onde já estava acertado'
+              : fechamento.transferenciaDe
                 ? `${nomeDe(estado.config, fechamento.transferenciaDe)} transferiu ${formatarReais(fechamento.valorTransferencia)} para ${nomeDe(estado.config, fechamento.transferenciaDe === 'A' ? 'B' : 'A')}`
                 : 'Ninguém devia nada'}
             </p>
