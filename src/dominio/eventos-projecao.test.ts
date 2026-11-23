@@ -123,7 +123,7 @@ describe('estado tipado', () => {
         ev({ hlc: h(6), entidade: 'config', entidadeId: 'config', campos: { nomeA: '' } }),
       ]),
     );
-    expect(e.config).toEqual({ ...NOMES_PADRAO, moeda: 'BRL' });
+    expect(e.config).toEqual({ ...NOMES_PADRAO, emailA: '', emailB: '', moeda: 'BRL' });
     expect(e.categorias[0]).toMatchObject({ nome: 'Sem nome', pctA: 5000, ativa: true });
     expect(e.despesas[0]).toMatchObject({ valor: 0, pagador: 'A', status: 'normal', origem: { tipo: 'manual' }, livro: 'casa' });
     expect(e.recorrentes[0]).toMatchObject({ tipoValor: 'variavel', fim: null, pctA: null, dia: 1 });

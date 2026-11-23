@@ -396,3 +396,23 @@ describe('configuração', () => {
     expect(definirNomes(ana.estado(), 'Ana', 'ana', ana.ctx).ok).toBe(false);
   });
 });
+
+describe('e-mails autorizados', () => {
+  it('define, normaliza e reconhece quem é quem', async () => {
+    const { definirEmails, ehEmailValido, pessoaDoEmail } = await import('./config.ts');
+    const ana = novaCasa();
+    expect(definirEmails(ana.estado(), 'x', 'pessoa.b@exemplo.com', ana.ctx).ok).toBe(false);
+    expect(definirEmails(ana.estado(), 'A@exemplo.com', ' a@exemplo.com ', ana.ctx).ok).toBe(false);
+    ana.fazer((e, ctx) => definirEmails(e, ' Pessoa.A@Exemplo.com ', 'pessoa.b@exemplo.com', ctx));
+    const { config } = ana.estado();
+    expect(config).toMatchObject({ emailA: 'pessoa.a@exemplo.com', emailB: 'pessoa.b@exemplo.com', nomeA: 'Ana' });
+    expect(pessoaDoEmail(config, 'PESSOA.B@exemplo.com')).toBe('B');
+    expect(pessoaDoEmail(config, 'pessoa.a@exemplo.com')).toBe('A');
+    expect(pessoaDoEmail(config, 'intruso@exemplo.com')).toBeNull();
+    expect(pessoaDoEmail(config, '')).toBeNull();
+    expect(ana.fazer((e, ctx) => definirEmails(e, 'pessoa.a@exemplo.com', 'pessoa.b@exemplo.com', ctx))).toEqual([]);
+    expect(ehEmailValido('sem-arroba.com')).toBe(false);
+    const vazia = new AparelhoDeTeste('x', 'A', '2026-11-10');
+    expect(definirEmails(vazia.estado(), 'a@exemplo.com', 'b@exemplo.com', vazia.ctx)).toMatchObject({ ok: false });
+  });
+});

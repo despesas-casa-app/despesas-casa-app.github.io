@@ -33,7 +33,7 @@ function lancar(ana: AparelhoDeTeste, d: Partial<DadosDespesa> & { cat?: string 
 
 describe('saldo', () => {
   it('frase natural e transferência', () => {
-    const config = { nomeA: 'Ana', nomeB: 'Bruno', moeda: 'BRL' as const };
+    const config = { nomeA: 'Ana', nomeB: 'Bruno', emailA: '', emailB: '', moeda: 'BRL' as const };
     expect(transferenciaDoSaldo(0)).toBeNull();
     expect(transferenciaDoSaldo(-500)).toEqual({ de: 'A', para: 'B', valor: 500 });
     expect(fraseDoSaldo(null, config)).toBe('Ninguém deve nada');

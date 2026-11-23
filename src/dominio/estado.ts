@@ -18,6 +18,9 @@ import {
 export interface Config {
   readonly nomeA: string;
   readonly nomeB: string;
+  /** E-mails Google autorizados (minúsculas). Vazios até o onboarding com o Google. */
+  readonly emailA: string;
+  readonly emailB: string;
   readonly moeda: 'BRL';
 }
 
@@ -157,6 +160,8 @@ function lerConfig(r: Registro | undefined): Config {
   return {
     nomeA: texto(c, 'nomeA', NOMES_PADRAO.nomeA) || NOMES_PADRAO.nomeA,
     nomeB: texto(c, 'nomeB', NOMES_PADRAO.nomeB) || NOMES_PADRAO.nomeB,
+    emailA: texto(c, 'emailA'),
+    emailB: texto(c, 'emailB'),
     moeda: 'BRL',
   };
 }
