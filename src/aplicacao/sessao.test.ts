@@ -3,7 +3,7 @@ import { ArmazemEmMemoria } from '../armazenamento/cifrado.ts';
 import { LocalEmMemoria } from '../armazenamento/local.ts';
 import { gerarFrase } from '../cripto/frase.ts';
 import { Cofre } from './cofre.ts';
-import { BLOQUEIO_AUTOMATICO_MS, Sessao } from './sessao.ts';
+import { BLOQUEIO_AUTOMATICO_MS, RENOVACAO_MS, Sessao } from './sessao.ts';
 
 function montar() {
   let agora = 1_000_000;
@@ -70,11 +70,88 @@ describe('sessão', () => {
     expect(e.fase === 'aberto' && e.loja.obterFoto().estado.categorias.length).toBe(13);
   });
 
-  it('ao reabrir o app com cofre, começa bloqueado', async () => {
-    const { armazem, cofre } = await comCofreAberto();
-    const nova = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria() });
+  it('reabrir (ou recarregar) em menos de 1 hora não pede a digital', async () => {
+    const { armazem, cofre, avancar } = await comCofreAberto();
+    let agora = avancar(BLOQUEIO_AUTOMATICO_MS - 60_000);
+    const nova = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria(), agora: () => agora });
+    await nova.iniciar();
+    const e = nova.obter();
+    expect(e.fase === 'aberto' && e.loja.obterFoto().estado.config.nomeB).toBe('Bruno');
+    // Reabrir renova o prazo: mais 59 minutos depois ainda abre.
+    agora += BLOQUEIO_AUTOMATICO_MS - 60_000;
+    const outra = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria(), agora: () => agora });
+    await outra.iniciar();
+    expect(outra.obter().fase).toBe('aberto');
+  });
+
+  it('depois de 1 hora sem uso, reabrir pede a digital e a sessão guardada é apagada', async () => {
+    const { armazem, cofre, avancar } = await comCofreAberto();
+    const agora = avancar(BLOQUEIO_AUTOMATICO_MS + 1);
+    const nova = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria(), agora: () => agora });
     await nova.iniciar();
     expect(nova.obter()).toEqual({ fase: 'bloqueado', metodo: 'pin' });
+    expect(armazem.sessao).toBeUndefined();
+  });
+
+  it('ir para segundo plano renova o prazo de 1 hora', async () => {
+    const { armazem, cofre, sessao, avancar } = await comCofreAberto();
+    avancar(50 * 60_000);
+    sessao.foiParaSegundoPlano();
+    await Promise.resolve();
+    await Promise.resolve();
+    const agora = avancar(100 * 60_000 - 50 * 60_000);
+    const nova = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria(), agora: () => agora });
+    await nova.iniciar();
+    expect(nova.obter().fase).toBe('aberto');
+  });
+
+  it('"Bloquear agora" apaga a sessão: reabrir pede a digital mesmo dentro de 1 hora', async () => {
+    const { armazem, cofre, sessao } = await comCofreAberto();
+    await sessao.bloquear();
+    expect(armazem.sessao).toBeUndefined();
+    const nova = new Sessao({ armazem, cofre, repositorioDemo: new LocalEmMemoria(), agora: () => 1_000_000 });
+    await nova.iniciar();
+    expect(nova.obter().fase).toBe('bloqueado');
+  });
+
+  it('a chave temporária da sessão não pode ser copiada', async () => {
+    const { armazem } = await comCofreAberto();
+    const chave = armazem.sessao?.chave;
+    expect(chave?.extractable).toBe(false);
+    await expect(crypto.subtle.exportKey('raw', chave!)).rejects.toThrow();
+  });
+
+  it('sessão guardada adulterada é descartada', async () => {
+    const { armazem, cofre } = await comCofreAberto();
+    const s = armazem.sessao!;
+    armazem.sessao = { ...s, dek: { ...s.dek, dados: s.dek.iv } };
+    expect(await cofre.abrirSessaoGuardada(1_000_000)).toBeNull();
+    expect(armazem.sessao).toBeUndefined();
+  });
+
+  it('10 PINs errados também apagam a sessão guardada', async () => {
+    const { armazem, cofre } = await comCofreAberto();
+    for (let i = 0; i < 10; i++) await cofre.abrirComPin('000001');
+    expect(armazem.sessao).toBeUndefined();
+    await cofre.renovarSessao(9_999_999);
+    expect(armazem.meta.has('sessaoExpiraEm')).toBe(false);
+  });
+
+  it('enquanto o app está na tela, o prazo é renovado de tempos em tempos', async () => {
+    vi.useFakeTimers();
+    const { sessao, armazem, avancar } = await comCofreAberto();
+    const doc = {
+      visibilityState: 'visible',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    } as unknown as Document;
+    const antes = armazem.meta.get('sessaoExpiraEm');
+    const parar = sessao.vigiar(doc);
+    const agora = avancar(RENOVACAO_MS);
+    await vi.advanceTimersByTimeAsync(RENOVACAO_MS + 10);
+    expect(armazem.meta.get('sessaoExpiraEm')).not.toBe(antes);
+    expect(armazem.meta.get('sessaoExpiraEm')).toBe(String(agora + BLOQUEIO_AUTOMATICO_MS));
+    parar();
   });
 
   it('bloqueia sozinho depois de 5 minutos em segundo plano', async () => {

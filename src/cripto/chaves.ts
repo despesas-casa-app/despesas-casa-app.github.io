@@ -28,7 +28,7 @@ export interface Embrulho {
 }
 
 /** Contexto que amarra cada embrulho ao seu uso (dados associados, AAD). */
-export type UsoEmbrulho = 'frase' | 'pin' | 'biometria';
+export type UsoEmbrulho = 'frase' | 'pin' | 'biometria' | 'sessao';
 
 function aadDoEmbrulho(uso: UsoEmbrulho): Uint8Array<ArrayBuffer> {
   return textoParaBytes(`viver-gasta|dek|v1|${uso}`);
@@ -95,6 +95,14 @@ export async function desembrulharDek(embrulho: Embrulho, chave: CryptoKey, uso:
   } catch {
     throw new ErroDeCriptografia();
   }
+}
+
+/**
+ * Chave temporária da sessão: gerada a cada desbloqueio e NÃO exportável — o navegador guarda o
+ * material, mas nenhum código (nem o próprio app) consegue copiá-la.
+ */
+export function gerarChaveDeSessao(): Promise<CryptoKey> {
+  return crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['wrapKey', 'unwrapKey']);
 }
 
 /** Salt novo, em Base64. */

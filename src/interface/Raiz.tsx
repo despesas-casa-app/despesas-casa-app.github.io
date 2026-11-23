@@ -10,7 +10,7 @@ export function Raiz() {
   const sessao = useSessao();
   const estado = useEstadoSessao();
 
-  // Bloqueio automático: 5 minutos em segundo plano (especificação 5.4).
+  // Bloqueio automático: 1 hora sem uso (especificação 5.4).
   useEffect(() => sessao.vigiar(document), [sessao]);
 
   switch (estado.fase) {

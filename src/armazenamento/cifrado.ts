@@ -1,4 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import type { Embrulho } from '../cripto/chaves.ts';
 import { cifrarEvento, decifrarEvento, type LinhaCifrada } from '../cripto/conteudo.ts';
 import type { Evento } from '../dominio/eventos.ts';
 import type { RepositorioLocal } from './local.ts';
@@ -6,8 +7,19 @@ import type { RepositorioLocal } from './local.ts';
 /**
  * Banco local do modo real (especificação 5.4): guarda APENAS dados criptografados.
  * - "linhas": os eventos, cada um cifrado com a DEK (mesmo formato que vai para a planilha);
- * - "meta": parâmetros sem segredo em claro (DEK sempre embrulhada, salts, contadores).
+ * - "meta": parâmetros sem segredo em claro (DEK sempre embrulhada, salts, contadores);
+ * - "sessao": a sessão aberta recentemente (ver SessaoGuardada).
  */
+
+/**
+ * Sessão aberta recentemente: a DEK embrulhada por uma chave temporária NÃO exportável (o próprio
+ * navegador não deixa nenhum código copiá-la). Permite reabrir o app sem a digital até "expiraEm".
+ */
+export interface SessaoGuardada {
+  readonly chave: CryptoKey;
+  readonly dek: Embrulho;
+}
+
 export interface ArmazemLocal {
   carregarLinhas(): Promise<LinhaCifrada[]>;
   salvarLinhas(linhas: readonly LinhaCifrada[]): Promise<void>;
@@ -15,6 +27,9 @@ export interface ArmazemLocal {
   gravarMeta(chave: string, valor: string): Promise<void>;
   apagarMeta(chave: string): Promise<void>;
   apagarTudo(): Promise<void>;
+  lerSessao(): Promise<SessaoGuardada | undefined>;
+  gravarSessao(sessao: SessaoGuardada): Promise<void>;
+  apagarSessao(): Promise<void>;
 }
 
 function ehLinha(x: unknown): x is LinhaCifrada {
@@ -26,7 +41,10 @@ function ehLinha(x: unknown): x is LinhaCifrada {
 interface Esquema extends DBSchema {
   linhas: { key: string; value: LinhaCifrada };
   meta: { key: string; value: string };
+  sessao: { key: string; value: SessaoGuardada };
 }
+
+const CHAVE_SESSAO = 'atual';
 
 export class ArmazemIndexedDb implements ArmazemLocal {
   private conexao: Promise<IDBPDatabase<Esquema>> | null = null;
@@ -34,10 +52,13 @@ export class ArmazemIndexedDb implements ArmazemLocal {
   constructor(private readonly nomeBanco: string) {}
 
   private banco(): Promise<IDBPDatabase<Esquema>> {
-    this.conexao ??= openDB<Esquema>(this.nomeBanco, 1, {
-      upgrade(db) {
-        db.createObjectStore('linhas', { keyPath: 'id' });
-        db.createObjectStore('meta');
+    this.conexao ??= openDB<Esquema>(this.nomeBanco, 2, {
+      upgrade(db, versaoAntiga) {
+        if (versaoAntiga < 1) {
+          db.createObjectStore('linhas', { keyPath: 'id' });
+          db.createObjectStore('meta');
+        }
+        if (versaoAntiga < 2) db.createObjectStore('sessao');
       },
     });
     return this.conexao;
@@ -67,8 +88,20 @@ export class ArmazemIndexedDb implements ArmazemLocal {
 
   async apagarTudo(): Promise<void> {
     const db = await this.banco();
-    const tx = db.transaction(['linhas', 'meta'], 'readwrite');
-    await Promise.all([tx.objectStore('linhas').clear(), tx.objectStore('meta').clear(), tx.done]);
+    const tx = db.transaction(['linhas', 'meta', 'sessao'], 'readwrite');
+    await Promise.all([tx.objectStore('linhas').clear(), tx.objectStore('meta').clear(), tx.objectStore('sessao').clear(), tx.done]);
+  }
+
+  async lerSessao(): Promise<SessaoGuardada | undefined> {
+    return (await this.banco()).get('sessao', CHAVE_SESSAO);
+  }
+
+  async gravarSessao(sessao: SessaoGuardada): Promise<void> {
+    await (await this.banco()).put('sessao', sessao, CHAVE_SESSAO);
+  }
+
+  async apagarSessao(): Promise<void> {
+    await (await this.banco()).delete('sessao', CHAVE_SESSAO);
   }
 }
 
@@ -76,6 +109,7 @@ export class ArmazemIndexedDb implements ArmazemLocal {
 export class ArmazemEmMemoria implements ArmazemLocal {
   readonly linhas = new Map<string, LinhaCifrada>();
   readonly meta = new Map<string, string>();
+  sessao: SessaoGuardada | undefined;
 
   carregarLinhas(): Promise<LinhaCifrada[]> {
     return Promise.resolve([...this.linhas.values()]);
@@ -103,6 +137,21 @@ export class ArmazemEmMemoria implements ArmazemLocal {
   apagarTudo(): Promise<void> {
     this.linhas.clear();
     this.meta.clear();
+    this.sessao = undefined;
+    return Promise.resolve();
+  }
+
+  lerSessao(): Promise<SessaoGuardada | undefined> {
+    return Promise.resolve(this.sessao);
+  }
+
+  gravarSessao(sessao: SessaoGuardada): Promise<void> {
+    this.sessao = sessao;
+    return Promise.resolve();
+  }
+
+  apagarSessao(): Promise<void> {
+    this.sessao = undefined;
     return Promise.resolve();
   }
 }

@@ -71,7 +71,7 @@ export function SecaoSeguranca() {
       <h2>Segurança</h2>
       <p className="ajuda">
         Este celular abre com: <strong>{metodo === 'biometria' ? 'digital' : metodo === 'pin' ? 'PIN' : '—'}</strong>. O app se
-        bloqueia sozinho depois de 5 minutos fora da tela.
+        bloqueia sozinho depois de 1 hora sem uso (e "Bloquear agora" tranca na hora).
       </p>
       <div className="lista-botoes">
         <button type="button" className="botao" onClick={() => { void sessao.bloquear(); }}>

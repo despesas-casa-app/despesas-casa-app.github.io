@@ -4,6 +4,7 @@ import {
   derivarChaveDeBiometria,
   derivarChaveDeSegredo,
   desembrulharDek,
+  gerarChaveDeSessao,
   embrulharDek,
   ErroDeCriptografia,
   gerarDek,
@@ -44,6 +45,7 @@ export type MetodoDesbloqueio = Desbloqueio['metodo'];
 const CHAVE_COFRE = 'cofre';
 const CHAVE_DESBLOQUEIO = 'desbloqueio';
 const CHAVE_TENTATIVAS = 'tentativasPin';
+const CHAVE_SESSAO_EXPIRA = 'sessaoExpiraEm';
 
 export type ResultadoPin =
   | { readonly ok: true; readonly dek: CryptoKey }
@@ -247,10 +249,46 @@ export class Cofre {
     }
   }
 
+  // --- Sessão recente: reabrir sem a digital por um tempo (decisão do dono: 1 hora sem uso) ---
+
+  /** Guarda a sessão aberta até "expiraEm" (ms). */
+  async guardarSessao(dek: CryptoKey, expiraEm: number): Promise<void> {
+    const chave = await gerarChaveDeSessao();
+    await this.armazem.gravarSessao({ chave, dek: await embrulharDek(dek, chave, 'sessao') });
+    await this.armazem.gravarMeta(CHAVE_SESSAO_EXPIRA, String(expiraEm));
+  }
+
+  /** Empurra o prazo da sessão (chamado quando o app é usado ou vai para segundo plano). */
+  async renovarSessao(expiraEm: number): Promise<void> {
+    if (await this.armazem.lerSessao()) await this.armazem.gravarMeta(CHAVE_SESSAO_EXPIRA, String(expiraEm));
+  }
+
+  /** Abre com a sessão guardada, se ainda estiver no prazo. Fora do prazo, apaga-a. */
+  async abrirSessaoGuardada(agora: number): Promise<CryptoKey | null> {
+    const sessao = await this.armazem.lerSessao();
+    const expira = Number(await this.armazem.lerMeta(CHAVE_SESSAO_EXPIRA));
+    if (!sessao || !Number.isFinite(expira) || agora >= expira) {
+      await this.esquecerSessao();
+      return null;
+    }
+    try {
+      return await desembrulharDek(sessao.dek, sessao.chave, 'sessao');
+    } catch {
+      await this.esquecerSessao();
+      return null;
+    }
+  }
+
+  async esquecerSessao(): Promise<void> {
+    await this.armazem.apagarSessao();
+    await this.armazem.apagarMeta(CHAVE_SESSAO_EXPIRA);
+  }
+
   /** Apaga a DEK guardada neste aparelho (biometria/PIN). Só a frase abre depois disso. */
   async esquecerDesbloqueio(): Promise<void> {
     await this.armazem.apagarMeta(CHAVE_DESBLOQUEIO);
     await this.armazem.apagarMeta(CHAVE_TENTATIVAS);
+    await this.esquecerSessao();
   }
 
   private credenciais(): Credenciais {

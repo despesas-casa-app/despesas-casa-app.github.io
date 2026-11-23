@@ -7,8 +7,14 @@ import type { Cofre, MetodoDesbloqueio } from './cofre.ts';
 import { semearDemonstracao } from './demo.ts';
 import { Loja } from './loja.ts';
 
-/** Bloqueio automático depois de 5 minutos em segundo plano (especificação 5.4). */
-export const BLOQUEIO_AUTOMATICO_MS = 5 * 60 * 1000;
+/**
+ * Bloqueio automático depois de 1 hora sem uso — em segundo plano, fechado ou recarregado
+ * (especificação 5.4, decisão do dono). Dentro desse prazo o app reabre sem pedir a digital.
+ */
+export const BLOQUEIO_AUTOMATICO_MS = 60 * 60 * 1000;
+
+/** De quanto em quanto tempo o prazo é renovado enquanto o app está na tela. */
+export const RENOVACAO_MS = 5 * 60 * 1000;
 
 export type EstadoSessao =
   | { readonly fase: 'iniciando' }
@@ -58,7 +64,10 @@ export class Sessao {
 
   async iniciar(): Promise<void> {
     if (await this.deps.cofre.existe()) {
-      await this.irParaBloqueado();
+      // Usado há menos de 1 hora? Reabre sem pedir a digital.
+      const dek = await this.deps.cofre.abrirSessaoGuardada(this.agora());
+      if (dek) await this.abrir(dek);
+      else await this.irParaBloqueado();
       return;
     }
     if ((await this.deps.armazem.lerMeta(CHAVE_MODO)) === 'demo') {
@@ -94,6 +103,7 @@ export class Sessao {
     loja.executar((_, ctx) => criarCategoriasIniciais(dados.pctProporcional, ctx));
     await loja.aguardarGravacao();
     this.dek = dek;
+    await this.deps.cofre.guardarSessao(dek, this.agora() + BLOQUEIO_AUTOMATICO_MS);
     this.mudar({ fase: 'aberto', loja, modo: 'real' });
   }
 
@@ -102,6 +112,7 @@ export class Sessao {
     const loja = new Loja(new RepositorioCifrado(this.deps.armazem, dek));
     await loja.iniciar();
     this.dek = dek;
+    await this.deps.cofre.guardarSessao(dek, this.agora() + BLOQUEIO_AUTOMATICO_MS);
     this.mudar({ fase: 'aberto', loja, modo: 'real' });
   }
 
@@ -121,6 +132,7 @@ export class Sessao {
   async bloquear(): Promise<void> {
     if (this.estado.fase === 'aberto' && this.estado.modo === 'real') {
       await this.estado.loja.aguardarGravacao();
+      await this.deps.cofre.esquecerSessao();
       await this.irParaBloqueado();
     }
   }
@@ -141,8 +153,16 @@ export class Sessao {
 
   // --- Bloqueio automático ---
 
+  /** Empurra o prazo de 1 hora (o app está sendo usado). */
+  manterSessaoViva(): void {
+    if (this.estado.fase === 'aberto' && this.estado.modo === 'real') {
+      void this.deps.cofre.renovarSessao(this.agora() + BLOQUEIO_AUTOMATICO_MS);
+    }
+  }
+
   /** Chamar quando o app vai para segundo plano. */
   foiParaSegundoPlano(): void {
+    this.manterSessaoViva();
     this.escondidoDesde = this.agora();
     clearTimeout(this.temporizador);
     this.temporizador = setTimeout(() => {
@@ -165,8 +185,13 @@ export class Sessao {
       else this.voltouParaFrente();
     };
     documento.addEventListener('visibilitychange', aoMudar);
+    // Enquanto o app está na tela, o prazo vai sendo renovado.
+    const renovacao = setInterval(() => {
+      if (documento.visibilityState === 'visible') this.manterSessaoViva();
+    }, RENOVACAO_MS);
     return () => {
       documento.removeEventListener('visibilitychange', aoMudar);
+      clearInterval(renovacao);
     };
   }
 

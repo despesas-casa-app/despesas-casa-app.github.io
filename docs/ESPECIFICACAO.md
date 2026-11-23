@@ -245,8 +245,17 @@ categorias. Depois disso, cada categoria é editada individualmente.
     com PRF. O PIN é o elo mais fraco: o limite de tentativas protege contra quem digita na tela,
     mas não contra quem copia os dados do aparelho.
 - A DEK fica guardada no IndexedDB **embrulhada** por uma chave derivada da PRF da passkey ou do
-  PIN (PBKDF2 com muitas iterações). Ela só existe em memória enquanto o app está desbloqueado.
-- **Bloqueio automático** após 5 minutos em segundo plano ou ao fechar o app.
+  PIN (PBKDF2 com muitas iterações). Aberta, ela só existe em memória enquanto o app está
+  desbloqueado.
+- **Bloqueio automático após 1 hora sem uso** (decisão do dono, 23/11/2026; antes eram 5 minutos
+  em segundo plano ou ao fechar). Vale para segundo plano, app fechado pelo Android e recarga da
+  página: dentro de 1 hora desde o último uso, o app reabre sem pedir a digital.
+  - Como funciona: a cada desbloqueio, a DEK é embrulhada também por uma **chave temporária não
+    exportável** (o navegador não deixa nenhum código copiá-la), guardada no banco local com o
+    prazo. O prazo é renovado enquanto o app está na tela e quando ele vai para segundo plano.
+  - "Bloquear agora", 10 PINs errados e "Apagar os dados deste celular" apagam essa sessão na
+    hora.
+  - Risco aceito: durante a 1 hora, quem pegar o celular destravado consegue abrir o app.
 - **10 PINs errados:** apaga a DEK local e passa a exigir a frase-mestra.
 - O banco local (IndexedDB) guarda **apenas dados criptografados**.
 - Detalhes da implementação (Fase 2):

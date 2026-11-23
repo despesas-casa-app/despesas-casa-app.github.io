@@ -64,3 +64,27 @@ describe('IndexedDB ignora dados corrompidos', () => {
     expect((await repo.carregarEventos()).map((e) => e.id)).toEqual(['ok']);
   });
 });
+
+describe('banco real (IndexedDB) com sessão guardada', () => {
+  it('guarda a chave temporária não exportável e apaga tudo junto', async () => {
+    const { ArmazemIndexedDb } = await import('./cifrado.ts');
+    const armazem = new ArmazemIndexedDb(`teste-sessao-${String(Math.random())}`);
+    const chave = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['wrapKey', 'unwrapKey']);
+    await armazem.gravarSessao({ chave, dek: { iv: 'a', dados: 'b' } });
+    const lida = await armazem.lerSessao();
+    expect(lida?.dek).toEqual({ iv: 'a', dados: 'b' });
+    expect(lida?.chave.extractable).toBe(false);
+    await armazem.salvarLinhas([{ id: 'x', versao: 1, conteudo: 'zzz' }]);
+    await armazem.salvarLinhas([]);
+    await armazem.gravarMeta('m', '1');
+    expect(await armazem.carregarLinhas()).toHaveLength(1);
+    await armazem.apagarMeta('m');
+    expect(await armazem.lerMeta('m')).toBeUndefined();
+    await armazem.apagarSessao();
+    expect(await armazem.lerSessao()).toBeUndefined();
+    await armazem.gravarSessao({ chave, dek: { iv: 'a', dados: 'b' } });
+    await armazem.apagarTudo();
+    expect(await armazem.lerSessao()).toBeUndefined();
+    expect(await armazem.carregarLinhas()).toEqual([]);
+  });
+});
