@@ -246,6 +246,12 @@ categorias. Depois disso, cada categoria é editada individualmente.
   - **DEK** aleatória (AES-256-GCM), "embrulhada" pela KEK;
   - salt, parâmetros e a DEK embrulhada ficam na aba `meta`;
   - trocar a frase só re-embrulha a DEK, sem recriptografar os dados.
+  - **Limite conhecido (revisão da Fase 5):** a aba `meta` só recebe linhas novas e o Google guarda
+    o histórico de versões, então o embrulho feito com a frase antiga continua na planilha. Quem
+    tiver a frase antiga **e** acesso à planilha ainda abre os dados. Trocar a frase protege os
+    celulares e a página de recuperação; a planilha continua protegida pela conta Google
+    (compartilhada só entre os dois, com verificação em 2 etapas). Revogar de verdade exigiria
+    trocar a DEK e recriptografar tudo numa planilha nova — não implementado; registrado no manual.
 - **Cada evento:** AES-256-GCM com IV aleatório de 96 bits. Os dados associados (AAD) incluem o
   id do evento e a versão do esquema.
 - **Texto puro na planilha:** apenas `id do evento`, `versão do esquema` e `ciphertext`.
