@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Viver Gasta · recuperação</title>
+  </head>
+  <body>
+    <main class="pagina">
+      <h1>Recuperação do Viver Gasta</h1>
+      <p class="destaque">
+        Esta página funciona <strong>sem internet</strong>. Os arquivos e a frase que você usar aqui não saem
+        deste aparelho: a página é proibida de se conectar a qualquer lugar.
+      </p>
+
+      <section>
+        <h2>1. Baixe as duas abas da planilha</h2>
+        <ol>
+          <li>No Google Drive, abra a planilha <strong>"Viver Gasta (dados criptografados)"</strong>.</li>
+          <li>Clique na aba <strong>meta</strong> (embaixo, à esquerda).</li>
+          <li>Menu <strong>Arquivo → Fazer download → Valores separados por vírgula (.csv)</strong>.</li>
+          <li>Clique na aba <strong>eventos</strong> e repita o passo 3.</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2>2. Escolha os dois arquivos</h2>
+        <input id="arquivos" type="file" accept=".csv,text/csv" multiple />
+        <ul id="situacao-arquivos" class="situacao"></ul>
+      </section>
+
+      <section>
+        <h2>3. Digite a frase-mestra</h2>
+        <textarea id="frase" rows="3" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+          placeholder="as 7 palavras (as 4 primeiras letras de cada uma bastam)"></textarea>
+      </section>
+
+      <button id="recuperar" type="button" disabled>Recuperar os dados</button>
+      <p id="mensagem" class="mensagem" role="status"></p>
+
+      <section id="resultado" hidden>
+        <h2>Pronto</h2>
+        <p id="resumo"></p>
+        <div class="botoes">
+          <button id="baixar-despesas" type="button">Baixar despesas (CSV)</button>
+          <button id="baixar-acertos" type="button">Baixar acertos (CSV)</button>
+        </div>
+        <p class="nota">Os CSVs abrem no Excel ou no Google Planilhas. Eles ficam legíveis: guarde-os em lugar seguro.</p>
+      </section>
+
+      <footer>
+        <p>
+          Dica: guarde uma cópia desta página no computador (Ctrl+S, "Página da Web, somente HTML"). Ela continua
+          funcionando mesmo se o site do app sair do ar.
+        </p>
+      </footer>
+    </main>
+    <script type="module" src="/src/recuperacao/pagina.ts"></script>
+  </body>
+</html>

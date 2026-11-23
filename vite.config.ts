@@ -61,6 +61,8 @@ export default defineConfig({
     __VERSAO__: JSON.stringify(versao),
   },
   build: {
+    // A página de recuperação é montada antes, na mesma pasta (ver vite.recuperacao.config.ts).
+    emptyOutDir: false,
     sourcemap: false,
     // Nada de arquivos embutidos como "data:" no JS: tudo vem do próprio site.
     assetsInlineLimit: 0,

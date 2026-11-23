@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build --config vite.recuperacao.config.ts && vite build",
     "preview": "vite preview",
     "tipos": "tsc --noEmit",
     "lint": "eslint .",
