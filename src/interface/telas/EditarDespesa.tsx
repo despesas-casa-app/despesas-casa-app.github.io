@@ -17,7 +17,7 @@ import { reabrirMes } from '../../dominio/fechamento.ts';
 import { criarParcelamento, MAXIMO_PARCELAS, valoresDasParcelas } from '../../dominio/parcelamentos.ts';
 import { formatarPercentual, lerPercentual } from '../../dominio/percentual.ts';
 import { criarRecorrente } from '../../dominio/recorrentes.ts';
-import { categoriasMaisUsadas, normalizarTexto, sugerir, type Sugestao } from '../../dominio/sugestoes.ts';
+import { categoriasMaisUsadas, normalizarTexto, preverCategoria, sugerir, type Sugestao } from '../../dominio/sugestoes.ts';
 import { LIVRO_CASA, type Competencia, type Pessoa, type PontosBase } from '../../dominio/tipos.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos, Vazio } from '../componentes/Basicos.tsx';
 import { CampoValor } from '../componentes/CampoValor.tsx';
@@ -182,6 +182,13 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
         pctTexto: textoMeu(exata.pctPadrao && cat ? cat.pctA : exata.pctA),
         pctPadrao: exata.pctPadrao,
       });
+      return;
+    }
+    // Descrição nova: tenta prever a categoria pelas palavras ("Padaria do bairro" → Padaria).
+    const prevista = !categoriaTocada && !editando ? preverCategoria(estado, descricao) : null;
+    const cat = prevista ? categoriaPorId(estado, prevista) : undefined;
+    if (cat && cat.id !== f.categoriaId) {
+      mudar(f.pctPadrao ? { descricao, categoriaId: cat.id, pctTexto: textoMeu(cat.pctA) } : { descricao, categoriaId: cat.id });
     } else mudar({ descricao });
   };
 

@@ -235,3 +235,55 @@ describe('atividade', () => {
     expect(itens[0]?.instante).toBeGreaterThan(0);
   });
 });
+
+describe('sugestões espertas', () => {
+  it('tolera um erro de digitação em palavras maiores', async () => {
+    const { combinacaoDaPalavra, umErroNoMaximo } = await import('./sugestoes.ts');
+    expect(umErroNoMaximo('mercado', 'mercado')).toBe(true);
+    expect(umErroNoMaximo('mercdo', 'mercado')).toBe(true); // falta uma letra
+    expect(umErroNoMaximo('merrcado', 'mercado')).toBe(true); // sobra uma letra
+    expect(umErroNoMaximo('mercedo', 'mercado')).toBe(true); // uma trocada
+    expect(umErroNoMaximo('mecrado', 'mercado')).toBe(true); // duas invertidas
+    expect(umErroNoMaximo('mrcdo', 'mercado')).toBe(false);
+    expect(umErroNoMaximo('abcd', 'xyzw')).toBe(false);
+    expect(combinacaoDaPalavra('merc', 'mercado')).toBe(1);
+    expect(combinacaoDaPalavra('mecr', 'mercado')).toBe(0.5);
+    expect(combinacaoDaPalavra('mec', 'mercado')).toBe(0); // curta demais para tolerar erro
+    expect(combinacaoDaPalavra('xyzw', 'mercado')).toBe(0);
+  });
+
+  it('acha com erro de digitação, mas o acerto exato vem primeiro', () => {
+    const ana = novaCasa();
+    lancar(ana, { descricao: 'Mercado', cat: 'Despesas da Casa' });
+    lancar(ana, { descricao: 'Mercearia', cat: 'Outros' });
+    expect(sugerir(ana.estado(), 'mercdo').map((s) => s.descricao)).toEqual(['Mercado']);
+    expect(sugerir(ana.estado(), 'merc').map((s) => s.descricao)).toEqual(expect.arrayContaining(['Mercado', 'Mercearia']));
+  });
+
+  it('o uso recente pesa mais que o antigo', () => {
+    const ana = novaCasa('2026-11-10');
+    for (const data of ['2025-01-05', '2025-01-12', '2025-01-19']) {
+      lancar(ana, { descricao: 'Feira', cat: 'Outros', data, competencia: data.slice(0, 7) });
+    }
+    lancar(ana, { descricao: 'Feira', cat: 'Despesas da Casa', data: '2026-11-01' });
+    lancar(ana, { descricao: 'Feira', cat: 'Despesas da Casa', data: '2026-11-08' });
+    expect(sugerir(ana.estado(), 'feira')[0]?.categoriaId).toBe(idCategoria(ana.estado(), 'Despesas da Casa'));
+  });
+
+  it('prevê a categoria de uma descrição nova pelas palavras', async () => {
+    const { preverCategoria } = await import('./sugestoes.ts');
+    const ana = novaCasa();
+    lancar(ana, { descricao: 'Padaria', cat: 'Despesas da Casa' });
+    lancar(ana, { descricao: 'Padaria Central', cat: 'Despesas da Casa' });
+    lancar(ana, { descricao: 'Uber aeroporto', cat: 'Transporte' });
+    const estado = ana.estado();
+    expect(preverCategoria(estado, 'Padaria do bairro')).toBe(idCategoria(estado, 'Despesas da Casa'));
+    expect(preverCategoria(estado, 'uber pro centro')).toBe(idCategoria(estado, 'Transporte'));
+    expect(preverCategoria(estado, 'de da')).toBeNull();
+    expect(preverCategoria(estado, 'cinema')).toBeNull();
+    // Empate entre categorias: sem confiança, não prevê.
+    lancar(ana, { descricao: 'Padaria Shopping', cat: 'Entretenimento' });
+    lancar(ana, { descricao: 'Padaria Shopping', cat: 'Entretenimento' });
+    expect(preverCategoria(ana.estado(), 'padaria nova')).toBeNull();
+  });
+});
