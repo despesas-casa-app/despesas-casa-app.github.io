@@ -287,3 +287,56 @@ describe('sugestões espertas', () => {
     expect(preverCategoria(ana.estado(), 'padaria nova')).toBeNull();
   });
 });
+
+describe('backup legível (CSV)', () => {
+  it('gera as despesas no formato do Excel em português', async () => {
+    const { BOM, celula, csvDespesas, nomeDoArquivo, numeroPercentual, numeroReais } = await import('./exportacao.ts');
+    const { criarParcelamento: parcelar } = await import('./parcelamentos.ts');
+    expect(celula('a;b')).toBe('"a;b"');
+    expect(celula('diz "oi"')).toBe('"diz ""oi"""');
+    expect(celula(12)).toBe('12');
+    expect(numeroReais(123456)).toBe('1234,56');
+    expect(numeroReais(-5)).toBe('-0,05');
+    expect(numeroPercentual(5835)).toBe('58,35');
+    expect(nomeDoArquivo('despesas', '2026-11-23')).toBe('viver-gasta-despesas-2026-11-23.csv');
+
+    const ana = novaCasa();
+    lancar(ana, { valor: 1001, descricao: 'Pão; leite', pagador: 'A', pctA: 5000, data: '2026-11-09' });
+    const apagada = lancar(ana, { valor: 999, descricao: 'Apagada' });
+    ana.fazer((e, ctx) => excluirDespesa(e, apagada, ctx));
+    lancar(ana, { valor: 0, status: 'aguardando', descricao: 'Luz', data: '2026-11-01' });
+    ana.fazer((e, ctx) =>
+      parcelar(e, {
+        descricao: 'TV', categoriaId: idCategoria(e, 'Compras'), pagador: 'B', pctA: 5000, pctPadrao: true,
+        n: 2, valorTotal: 1000, dataCompra: '2026-11-05', primeiraCompetencia: '2026-11',
+      }, ctx),
+    );
+    const csv = csvDespesas(ana.estado());
+    expect(csv.startsWith(BOM)).toBe(true);
+    const linhas = csv.slice(1).trim().split('\r\n');
+    expect(linhas[0]).toBe('Data;Mês da conta;Descrição;Categoria;Valor (R$);Quem pagou;% de Ana;% de Bruno;Parte de Ana (R$);Parte de Bruno (R$);Tipo;Situação;Lançada por;Última alteração por;Id');
+    expect(linhas).toHaveLength(5); // cabeçalho + luz + tv 1/2 + pão + tv 2/2 (a apagada fica de fora)
+    expect(linhas[1]).toMatch(/^01\/11\/2026;novembro de 2026;Luz;Despesas da Casa;;Ana;60,00;40,00;;;avulsa;aguardando valor;Ana;;/);
+    expect(linhas[2]).toMatch(/^05\/11\/2026;novembro de 2026;TV 1\/2;Compras;5,00;Bruno;50,00;50,00;2,50;2,50;parcela 1\/2;normal;Ana;;/);
+    expect(linhas[3]).toMatch(/^09\/11\/2026;novembro de 2026;"Pão; leite";Despesas da Casa;10,01;Ana;50,00;50,00;5,01;5,00;avulsa;normal;Ana;;/);
+    expect(csv).not.toContain('Apagada');
+  });
+
+  it('gera os acertos, inclusive reabertos e meses sem dívida', async () => {
+    const { csvAcertos } = await import('./exportacao.ts');
+    const ana = novaCasa('2026-12-05');
+    lancar(ana, { valor: 10000, pagador: 'A', pctA: 5000, data: '2026-11-08' });
+    lancar(ana, { valor: 4000, pagador: 'B', pctA: 5000, data: '2026-10-08', competencia: '2026-10' });
+    ana.fazer((e, ctx) => fecharMes(e, LIVRO_CASA, '2026-11', ctx));
+    ana.fazer((e, ctx) => fecharMes(e, LIVRO_CASA, '2026-10', ctx));
+    ana.fazer((e, ctx) => fecharMes(e, LIVRO_CASA, '2026-09', ctx));
+    ana.fazer((e, ctx) => reabrirMes(e, LIVRO_CASA, '2026-10', ctx));
+    const linhas = csvAcertos(ana.estado()).slice(1).trim().split('\r\n');
+    expect(linhas).toEqual([
+      'Mês;Situação;Total do mês (R$);Quem transferiu;Para quem;Valor (R$);Data do acerto;Acertado por',
+      'setembro de 2026;acertado;0,00;ninguém devia;;0,00;05/12/2026;Ana',
+      'outubro de 2026;reaberto;40,00;Ana;Bruno;20,00;05/12/2026;Ana',
+      'novembro de 2026;acertado;100,00;Bruno;Ana;50,00;05/12/2026;Ana',
+    ]);
+  });
+});

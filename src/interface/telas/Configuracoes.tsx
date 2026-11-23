@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { semearDemonstracao } from '../../aplicacao/demo.ts';
+import { dataLocal } from '../../dominio/competencia.ts';
 import { definirNomes } from '../../dominio/config.ts';
+import { csvAcertos, csvDespesas, nomeDoArquivo } from '../../dominio/exportacao.ts';
+import { baixarArquivo } from '../baixar.ts';
 import { AcoesJanela, Cabecalho, Janela, Segmentos } from '../componentes/Basicos.tsx';
 import { useAvisar, useFoto, useLoja } from '../contexto.tsx';
 import { navegar } from '../rotas.ts';
@@ -68,12 +71,36 @@ export function Configuracoes() {
 
       <section className="secao cartao">
         <h2>Dados</h2>
+        <p className="ajuda">
+          Os backups são gerados neste aparelho e abrem no Excel ou no Google Planilhas. Eles ficam legíveis: guarde em
+          lugar seguro.
+        </p>
         <ul className="lista-links">
           <li>
             <button type="button" className="link-linha" onClick={() => { navegar({ tela: 'categorias' }); }}>Categorias</button>
           </li>
-          <li><span className="link-linha desativado">Exportar backup legível · Fase 4</span></li>
-          <li><span className="link-linha desativado">Importar do Tricount · Fase 4</span></li>
+          <li>
+            <button type="button" className="link-linha" onClick={() => {
+              baixarArquivo(nomeDoArquivo('despesas', dataLocal(new Date())), csvDespesas(estado));
+              avisar('Backup das despesas baixado');
+            }}>
+              Baixar backup das despesas (CSV)
+            </button>
+          </li>
+          <li>
+            <button type="button" className="link-linha" onClick={() => {
+              baixarArquivo(nomeDoArquivo('acertos', dataLocal(new Date())), csvAcertos(estado));
+              avisar('Backup dos acertos baixado');
+            }}>
+              Baixar backup dos acertos (CSV)
+            </button>
+          </li>
+          <li>
+            <a className="link-linha" href={`${import.meta.env.BASE_URL}recuperacao.html`} target="_blank" rel="noopener noreferrer">
+              Página de recuperação (funciona sem internet)
+            </a>
+          </li>
+          <li><span className="link-linha desativado">Importar do Tricount · em breve</span></li>
         </ul>
       </section>
 
