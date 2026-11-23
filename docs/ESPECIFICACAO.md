@@ -311,6 +311,31 @@ categorias. Depois disso, cada categoria é editada individualmente.
 - Retentativa com backoff exponencial.
 - Tratar o limite de taxa (quota) da API do Sheets.
 
+### 6.1 Como ficou implementado (Fase 3)
+- **Planilha:** "Viver Gasta (dados criptografados)", com as abas `meta` (linhas `chave | valor`:
+  `formato = viver-gasta-v1` e `cofre = {parâmetros}`) e `eventos` (`id | versao | conteudo`). Tudo
+  só por acréscimo; a troca de frase acrescenta uma nova linha `cofre` (vale a última válida).
+- **Fila de saída:** são "pendentes" todos os eventos do aparelho que a planilha ainda não
+  confirmou. Retentar é seguro: linhas repetidas são ignoradas por quem lê (mesmo id).
+- **Retentativas:** 5 s, 10 s, 20 s… até 5 min. Erros de login viram "Toque para sincronizar";
+  falta de acesso à planilha vira um erro claro na faixa do topo.
+- **Linhas que não abrem** (outro cofre, edição manual) são ignoradas e contadas em
+  Configurações → Google e sincronização.
+- **Login:** o token do Google fica só em memória (5.5). Abrir a janela do Google exige um toque da
+  pessoa, então **a cada abertura do app, e quando o token vence (cerca de 1 hora), aparece a
+  faixa "Toque para sincronizar"**. Os lançamentos continuam funcionando normalmente e ficam na
+  fila até o toque.
+- **1ª pessoa (criar o cofre):** entra com o Google → frase → nomes, e-mail Google da outra pessoa
+  e divisão → biometria/PIN → o app cria a planilha, grava os parâmetros do cofre, **compartilha
+  como editora** com o e-mail informado (o Google avisa a outra pessoa por e-mail) e abre.
+- **2ª pessoa ou celular novo ("Já temos um cofre: entrar"):** entra com o Google → escolhe a
+  planilha no seletor (Picker) → digita a frase (conferida sem gravar nada) → biometria/PIN → o
+  app baixa tudo e só fica se o e-mail da conta estiver entre os autorizados; se não estiver,
+  apaga o que baixou. Quem é quem (Pessoa A/B) vem do e-mail.
+- A cada login, o e-mail da conta é conferido contra os autorizados; outra conta é desconectada.
+- **Identificadores do Google** (ID do cliente, chave do Picker, número do projeto) são públicos e
+  ficam como *variables* do repositório no GitHub (usadas no build) e em `.env.local` no PC.
+
 ---
 
 ## 7. Telas

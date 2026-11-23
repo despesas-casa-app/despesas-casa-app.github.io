@@ -88,8 +88,12 @@ src/
                  guarda linhas cifradas + meta (DEK sempre embrulhada).
   aplicacao/     loja.ts: guarda os eventos do aparelho, monta o estado e executa as regras.
                  cofre.ts: cria/abre a DEK (frase, PIN com limite de 10, biometria).
-                 sessao.ts: boas-vindas / bloqueado / aberto (real ou demo) + bloqueio automático.
+                 sessao.ts: boas-vindas / bloqueado / aberto (real ou demo) + bloqueio automático,
+                 criar com planilha, entrar em cofre existente, "Toque para sincronizar".
+                 sincronizacao.ts: fila de saída, puxada incremental, retentativas.
                  demo.ts gera os dados FICTÍCIOS do modo demonstração.
+  google/        Login (GIS, token só em memória), planilha (Sheets, só acréscimo), Drive
+                 (e-mail da conta, compartilhar) e Picker. Implementa aplicacao/servicoRemoto.ts.
   interface/     Telas React (telas/ e componentes/). Só conversa com a loja e o domínio.
                  Navegação por "#" (rotas.ts). Gráficos em SVG feito à mão.
   main.tsx       Ponto de entrada; recusa rodar dentro de iframe (proteção contra clickjacking).
@@ -114,6 +118,15 @@ docs/            Especificação, guias do dono (docs/guias/) e manual.
 - A frase-mestra e o PIN nunca são gravados. A DEK só existe na memória com o app desbloqueado.
 - Ao testar no navegador, crie um cofre de TESTE em localhost e apague-o no fim
   (Configurações → Segurança → Apagar os dados deste celular).
+
+## Google (Fase 3)
+
+- IDs públicos em variáveis: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_GOOGLE_APP_ID`.
+  No GitHub: *variables* (não secrets) `GOOGLE_CLIENT_ID`, `GOOGLE_API_KEY`, `GOOGLE_APP_ID`.
+  No PC: arquivo `.env.local` (bloqueado pelo .gitignore). Nunca escrever a chave no código: o
+  verificador de segredos barra chaves `AIza…`.
+- Sem esses valores o app funciona sem Google (cofre só no aparelho).
+- Os testes usam um "Google de mentira" (src/google/google.test.ts, src/aplicacao/sessaoGoogle.test.ts).
 
 ## Termos proibidos pessoais
 
