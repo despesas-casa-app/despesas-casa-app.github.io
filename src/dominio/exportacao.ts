@@ -14,9 +14,15 @@ import type { PontosBase } from './tipos.ts';
 export const SEPARADOR = ';';
 export const BOM = '﻿';
 
-/** Escapa uma célula: aspas em volta quando há separador, aspas ou quebra de linha. */
+/**
+ * Escapa uma célula: aspas em volta quando há separador, aspas ou quebra de linha.
+ * Proteção contra fórmulas (CSV injection): um texto que começa com =, +, -, @, tab ou retorno vira
+ * fórmula ao abrir no Excel/Planilhas; ganha um apóstrofo na frente e aparece como texto.
+ * Números como "-5,00" (valores negativos) não são tocados.
+ */
 export function celula(valor: string | number): string {
-  const texto = String(valor);
+  let texto = String(valor);
+  if (typeof valor === 'string' && /^[=+\-@\t\r]/.test(texto) && !/^-\d+(,\d+)?$/.test(texto)) texto = `'${texto}`;
   return /[;"\r\n]/.test(texto) ? `"${texto.replaceAll('"', '""')}"` : texto;
 }
 

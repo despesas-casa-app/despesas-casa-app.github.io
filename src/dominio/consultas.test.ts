@@ -295,6 +295,14 @@ describe('backup legível (CSV)', () => {
     expect(celula('a;b')).toBe('"a;b"');
     expect(celula('diz "oi"')).toBe('"diz ""oi"""');
     expect(celula(12)).toBe('12');
+    // Textos que o Excel/Planilhas leriam como fórmula viram texto; números negativos não mudam.
+    expect(celula('=HIPERLINK("x")')).toBe(`"'=HIPERLINK(""x"")"`);
+    expect(celula('+55 11')).toBe("'+55 11");
+    expect(celula('@soma')).toBe("'@soma");
+    expect(celula('-cmd')).toBe("'-cmd");
+    expect(celula('-5,00')).toBe('-5,00');
+    expect(celula(-5)).toBe('-5');
+    expect(celula('Mercado = barato')).toBe('Mercado = barato');
     expect(numeroReais(123456)).toBe('1234,56');
     expect(numeroReais(-5)).toBe('-0,05');
     expect(numeroPercentual(5835)).toBe('58,35');
