@@ -29,4 +29,18 @@ if (estaEmbutido(window)) {
     </StrictMode>,
   );
   void sessao.iniciar();
+
+  // Atualização do app: quando uma versão nova assume, o app recarrega — mas só quando a pessoa
+  // volta para ele (nunca no meio de um lançamento). Recarregar também bloqueia o app.
+  if ('serviceWorker' in navigator) {
+    // Na primeira instalação não havia versão anterior: isso não é uma atualização.
+    const tinhaVersaoAnterior = navigator.serviceWorker.controller !== null;
+    let atualizar = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (tinhaVersaoAnterior) atualizar = true;
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (atualizar && document.visibilityState === 'visible') window.location.reload();
+    });
+  }
 }

@@ -95,6 +95,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         cleanupOutdatedCaches: true,
+        // Versão nova assume na hora (sem ficar "esperando" todas as janelas fecharem).
+        skipWaiting: true,
+        clientsClaim: true,
         navigateFallback: 'index.html',
       },
     }),
