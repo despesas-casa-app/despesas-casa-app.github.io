@@ -80,10 +80,15 @@ src/
                  O ESLint bloqueia imports de react/idb/interface e o uso de fetch, window etc.
                  Precisa de cobertura de testes alta.
   cripto/        Camada de criptografia isolada (WebCrypto). Testes: ida e volta, chave errada,
-                 adulteração de ciphertext e de AAD.
-  armazenamento/ Interface de armazenamento remoto + implementações: memória/local (testes e
-                 modo demonstração) e Google Sheets.
-  aplicacao/     A "loja": guarda os eventos do aparelho, monta o estado e executa as regras;
+                 adulteração de ciphertext e de AAD. frase.ts + palavras.ts (BIP-0039 pt, NÃO
+                 editar), chaves.ts (PBKDF2/HKDF, DEK, embrulhos), conteudo.ts (eventos AES-GCM),
+                 pin.ts, passkey.ts (WebAuthn PRF, recebe navigator.credentials de fora).
+  armazenamento/ remoto.ts: interface do log remoto (memória agora; Google Sheets na Fase 3).
+                 local.ts: banco da demonstração (sem cripto). cifrado.ts: banco real, que só
+                 guarda linhas cifradas + meta (DEK sempre embrulhada).
+  aplicacao/     loja.ts: guarda os eventos do aparelho, monta o estado e executa as regras.
+                 cofre.ts: cria/abre a DEK (frase, PIN com limite de 10, biometria).
+                 sessao.ts: boas-vindas / bloqueado / aberto (real ou demo) + bloqueio automático.
                  demo.ts gera os dados FICTÍCIOS do modo demonstração.
   interface/     Telas React (telas/ e componentes/). Só conversa com a loja e o domínio.
                  Navegação por "#" (rotas.ts). Gráficos em SVG feito à mão.
@@ -102,6 +107,13 @@ docs/            Especificação, guias do dono (docs/guias/) e manual.
 - Sem CDNs, sem analytics, sem rastreadores.
 - O site mora numa **organização exclusiva do GitHub** (`<org>.github.io`), para não dividir a
   origem do navegador com outros sites do dono.
+
+## Segredos no app (Fase 2)
+
+- Bancos no navegador: `viver-gasta` (real, só cifrado) e `viver-gasta-demo` (fictício).
+- A frase-mestra e o PIN nunca são gravados. A DEK só existe na memória com o app desbloqueado.
+- Ao testar no navegador, crie um cofre de TESTE em localhost e apague-o no fim
+  (Configurações → Segurança → Apagar os dados deste celular).
 
 ## Termos proibidos pessoais
 

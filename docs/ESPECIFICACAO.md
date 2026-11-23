@@ -210,6 +210,11 @@ categorias. Depois disso, cada categoria é editada individualmente.
 ### 5.2 Criptografia de ponta a ponta
 - **Frase-mestra:** 7 palavras aleatórias em português, de uma lista com pelo menos 2048 palavras
   sem acento (≥ 77 bits de entropia). É gerada pelo app no onboarding.
+  - Lista usada: a portuguesa do padrão **BIP-0039** (2048 palavras, licença MIT), em
+    `src/cripto/palavras.ts`. Nunca mudar a lista: isso invalidaria as frases já criadas.
+  - Ao digitar, bastam as **4 primeiras letras** de cada palavra (elas nunca se repetem na lista);
+    acentos, maiúsculas e espaços extras não importam.
+  - Na criação, o app pede 3 palavras sorteadas de volta, para conferir se a frase foi anotada.
 - **Hierarquia de chaves:**
   - frase-mestra → PBKDF2-SHA256 (≥ 600.000 iterações, salt aleatório) → **KEK**;
   - **DEK** aleatória (AES-256-GCM), "embrulhada" pela KEK;
@@ -244,6 +249,18 @@ categorias. Depois disso, cada categoria é editada individualmente.
 - **Bloqueio automático** após 5 minutos em segundo plano ou ao fechar o app.
 - **10 PINs errados:** apaga a DEK local e passa a exigir a frase-mestra.
 - O banco local (IndexedDB) guarda **apenas dados criptografados**.
+- Detalhes da implementação (Fase 2):
+  - a biometria usa uma passkey do próprio aparelho com a extensão PRF; os 32 bytes secretos dela
+    passam por HKDF-SHA256 e viram a chave que embrulha a DEK. O PIN usa PBKDF2-SHA256 com as
+    mesmas ≥ 600.000 iterações da frase;
+  - se o aparelho não oferece biometria com PRF, o app vai direto para o PIN;
+  - a frase-mestra sempre pode ser usada na tela de bloqueio; depois de abrir com ela sem
+    biometria/PIN configurados, o app pede para configurar um dos dois;
+  - **trocar a frase exige a frase atual** (um celular desbloqueado nas mãos de outra pessoa não
+    basta para trocá-la);
+  - "Apagar os dados deste celular" (Configurações → Segurança) exige digitar APAGAR;
+  - o modo demonstração usa um banco separado, sem criptografia e só com dados fictícios. Ele é
+    escolhido na tela de boas-vindas e nunca se mistura com os dados reais.
 
 ### 5.5 Google
 - OAuth com Google Identity Services, no **modelo de token**, com escopo **`drive.file`**
@@ -319,6 +336,11 @@ categorias. Depois disso, cada categoria é editada individualmente.
    - exportar backup legível (CSV/XLSX gerado localmente);
    - importar do Tricount;
    - sobre.
+
+10. **Boas-vindas** (aparelho sem cofre): "Criar nosso cofre" ou "Ver a demonstração".
+11. **Criar o cofre:** frase-mestra → conferir 3 palavras → nomes, quem usa o celular e a parte
+    nas despesas da casa → biometria (ou PIN).
+12. **Bloqueio:** digital (ou PIN), com "Usar a frase-mestra" sempre disponível.
 
 ### Diretrizes de interface
 - Português do Brasil, formato BRL (R$ 1.234,56) e datas dd/mm/aaaa.
