@@ -1,7 +1,8 @@
 # Especificação — Viver Gasta (app de despesas da casa)
 
 > **Nome e identidade:** o app se chama **Viver Gasta**, inspirado numa frase de Ida Feldman.
-> O ícone são **azulejos amarelos esmaltados** com rejunte claro. A **cor principal é `#F8D588`**,
+> O ícone são **azulejos amarelos lisos** (sem brilho, reflexo ou relevo) com rejunte claro. O
+> visual do app também é chapado, sem degradês ou efeitos brilhantes. A **cor principal é `#F8D588`**,
 > usada no ícone e na interface. Por ser um tom pastel, texto sobre ela é sempre escuro, e links,
 > ícones e contornos de foco usam o mesmo tom escurecido (`#8A6212`) para ficarem legíveis.
 

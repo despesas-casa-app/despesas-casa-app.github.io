@@ -11,9 +11,6 @@
   --marca: #f8d588;
   --marca-clara: #fdf0d2;
   --marca-forte: #8a6212;
-  --marca-topo: #fbe3ae;
-  --marca-base: #f4c76b;
-  --marca-sombra: rgb(150 105 20 / 22%);
   --sobre-marca: #1f1a10;
   --ok: #15803d;
   --alerta: #a35a00;
@@ -45,7 +42,6 @@
     --marca: #f8d588;
     --marca-clara: #3a3222;
     --marca-forte: #f8d588;
-    --marca-sombra: rgb(0 0 0 / 35%);
     --alerta: #f3b44b;
     --alerta-fundo: #3a2a10;
     --perigo: #f2836f;
@@ -221,7 +217,6 @@ h2 {
   background: var(--marca);
   border-color: var(--marca);
   color: var(--sobre-marca);
-  box-shadow: 0 2px 0 var(--marca-base);
 }
 
 .botao-secundario {
@@ -326,31 +321,14 @@ h2 {
   gap: 10px;
   padding: 20px;
   border-radius: 20px;
-  background: linear-gradient(160deg, var(--marca-topo), var(--marca) 55%, var(--marca-base));
+  background: var(--marca);
   color: var(--sobre-marca);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 50%), 0 6px 18px var(--marca-sombra);
-  overflow: hidden;
-}
-
-.cartao-saldo::after {
-  /* reflexo do esmalte, como no ícone */
-  content: '';
-  position: absolute;
-  inset: -40% 30% auto -20%;
-  height: 120%;
-  background: linear-gradient(115deg, transparent 40%, rgb(255 255 255 / 25%) 50%, transparent 60%);
-  pointer-events: none;
 }
 
 .cartao-saldo.fechado {
   background: var(--superficie-2);
   color: var(--texto);
-  box-shadow: none;
   border: 1px solid var(--borda);
-}
-
-.cartao-saldo.fechado::after {
-  display: none;
 }
 
 .saldo-rotulo {
@@ -1185,9 +1163,8 @@ h2 {
   margin-top: -22px;
   border: 4px solid var(--fundo);
   border-radius: 18px;
-  background: linear-gradient(160deg, var(--marca-topo), var(--marca) 55%, var(--marca-base));
+  background: var(--marca);
   color: var(--sobre-marca);
-  box-shadow: 0 4px 12px var(--marca-sombra), inset 0 1px 0 rgb(255 255 255 / 60%);
 }
 
 /* ---------- Janela (dialog) e aviso ---------- */

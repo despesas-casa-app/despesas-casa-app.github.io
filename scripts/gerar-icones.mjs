@@ -1,5 +1,5 @@
-// Gera os ícones PNG do app "Viver Gasta" — azulejos amarelos esmaltados com rejunte claro —
-// sem nenhuma dependência externa.
+// Gera os ícones PNG do app "Viver Gasta" — azulejos lisos na cor principal (#F8D588) com
+// rejunte claro, sem brilho nem relevo — sem nenhuma dependência externa.
 // Uso: npm run gerar-icones   →   grava em public/icones/
 //
 // O desenho é o mesmo de public/icone.svg. Se mudar um, mude o outro.
@@ -12,9 +12,8 @@ import { deflateSync } from 'node:zlib';
 // ---------------------------------------------------------------------------------------------
 
 const REJUNTE = [0xff, 0xfc, 0xf4];
-// Cor principal do app: #F8D588 (no meio do azulejo), com degradê suave de esmalte.
-const AZULEJO_TOPO = [0xfb, 0xe3, 0xae];
-const AZULEJO_BASE = [0xf4, 0xc7, 0x6b];
+/** Cor principal do app. */
+const AZULEJO = [0xf8, 0xd5, 0x88];
 const RAIO_ICONE = 104;
 /** Margem externa maior que o rejunte interno, para os azulejos dos cantos não serem cortados. */
 const MARGEM = 26;
@@ -22,27 +21,12 @@ const REJUNTE_LARGURA = 14;
 const AZULEJOS_POR_LADO = 3;
 const LADO_AZULEJO = (512 - 2 * MARGEM - REJUNTE_LARGURA * (AZULEJOS_POR_LADO - 1)) / AZULEJOS_POR_LADO; // 144
 const RAIO_AZULEJO = 20;
-const BISEL = 10;
-/** Pequenas variações de tom entre os azulejos, como em uma parede de verdade. */
-const VARIACAO = [0, 6, -4, -6, 2, 5, 4, -3, 0];
 
-const misturar = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
-const clamp = (v) => Math.max(0, Math.min(255, v));
-
-/** Distância "para dentro" de um retângulo arredondado (negativa = fora). */
-function distanciaDentro(x, y, x0, y0, lado, raio) {
+/** Está dentro do retângulo arredondado? */
+function dentroDoAzulejo(x, y, x0, y0, lado, raio) {
   const cx = Math.min(Math.max(x, x0 + raio), x0 + lado - raio);
   const cy = Math.min(Math.max(y, y0 + raio), y0 + lado - raio);
-  const dx = x - cx;
-  const dy = y - cy;
-  const fora = Math.hypot(dx, dy);
-  if (x >= x0 + raio && x <= x0 + lado - raio) {
-    return Math.min(y - y0, y0 + lado - y);
-  }
-  if (y >= y0 + raio && y <= y0 + lado - raio) {
-    return Math.min(x - x0, x0 + lado - x);
-  }
-  return raio - fora;
+  return Math.hypot(x - cx, y - cy) <= raio;
 }
 
 function corDoAzulejo(x, y) {
@@ -51,32 +35,7 @@ function corDoAzulejo(x, y) {
       const x0 = MARGEM + coluna * (LADO_AZULEJO + REJUNTE_LARGURA);
       const y0 = MARGEM + linha * (LADO_AZULEJO + REJUNTE_LARGURA);
       if (x < x0 || x > x0 + LADO_AZULEJO || y < y0 || y > y0 + LADO_AZULEJO) continue;
-      const dentro = distanciaDentro(x, y, x0, y0, LADO_AZULEJO, RAIO_AZULEJO);
-      if (dentro < 0) return null;
-
-      // Degradê vertical do esmalte.
-      const t = (y - y0) / LADO_AZULEJO;
-      let cor = misturar(AZULEJO_TOPO, AZULEJO_BASE, t);
-      const ajuste = VARIACAO[linha * AZULEJOS_POR_LADO + coluna] ?? 0;
-      cor = cor.map((v) => v + ajuste * 0.6);
-
-      // Bisel: borda de cima/esquerda mais clara, de baixo/direita mais escura.
-      if (dentro < BISEL) {
-        const forca = 1 - dentro / BISEL;
-        const luz = (x0 + LADO_AZULEJO - x + (y0 + LADO_AZULEJO - y)) / (2 * LADO_AZULEJO); // 1 no canto sup. esq.
-        cor = luz > 0.5
-          ? misturar(cor, [255, 255, 255], forca * 0.45)
-          : misturar(cor, [0xc4, 0x93, 0x3c], forca * 0.4);
-      }
-
-      // Reflexo do esmalte: faixa diagonal suave no alto do azulejo.
-      const u = (x - x0) / LADO_AZULEJO;
-      const diagonal = u + t;
-      if (diagonal > 0.35 && diagonal < 0.62 && t < 0.55) {
-        const meio = Math.abs(diagonal - 0.485) / 0.135; // 0 no centro da faixa
-        cor = misturar(cor, [255, 255, 255], (1 - meio) * 0.28);
-      }
-      return cor.map(clamp);
+      return dentroDoAzulejo(x, y, x0, y0, LADO_AZULEJO, RAIO_AZULEJO) ? AZULEJO : null;
     }
   }
   return null;
