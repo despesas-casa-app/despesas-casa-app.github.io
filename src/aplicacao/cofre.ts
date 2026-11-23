@@ -57,7 +57,7 @@ export type ResultadoFraseDigitada =
   | { readonly ok: false; readonly motivo: 'invalida'; readonly mensagem: string }
   | { readonly ok: false; readonly motivo: 'nao-confere' };
 
-function ehMetaCofre(x: unknown): x is MetaCofre {
+export function ehMetaCofre(x: unknown): x is MetaCofre {
   const m = x as Partial<MetaCofre> | null;
   return (
     typeof m === 'object' && m !== null && m.versao === 1 && m.kdf === 'PBKDF2-SHA256' &&
