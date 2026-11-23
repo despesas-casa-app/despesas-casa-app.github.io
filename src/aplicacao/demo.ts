@@ -7,9 +7,9 @@ import { alterarDespesa, criarDespesa } from '../dominio/despesas.ts';
 import type { Estado } from '../dominio/estado.ts';
 import { fecharMes } from '../dominio/fechamento.ts';
 import { criarParcelamento } from '../dominio/parcelamentos.ts';
-import { criarRecorrente } from '../dominio/recorrentes.ts';
+import { criarRecorrente, gerarRecorrentesPendentes } from '../dominio/recorrentes.ts';
 import { LIVRO_CASA, type Pessoa } from '../dominio/tipos.ts';
-import type { Loja } from './loja.ts';
+import type { Loja, Regra } from './loja.ts';
 
 export const NOMES_DEMO = { A: 'Ana', B: 'Bruno' } as const;
 export const PCT_PROPORCIONAL_DEMO = 6000;
@@ -59,75 +59,96 @@ const LANCAMENTOS: readonly Lancamento[] = [
   { mesesAtras: 0, dia: 9, descricao: 'Farmácia', categoria: 'Outros', valor: 4570, pagador: 'B' },
 ];
 
+const RECORRENTES = [
+  { descricao: 'Aluguel', categoria: 'Moradia', pagador: 'A', tipoValor: 'fixo', valor: 250000, dia: 5 },
+  { descricao: 'Condomínio', categoria: 'Moradia', pagador: 'B', tipoValor: 'fixo', valor: 78000, dia: 10 },
+  { descricao: 'Conta de luz', categoria: 'Contas de Consumo', pagador: 'B', tipoValor: 'variavel', valor: 0, dia: 15 },
+  { descricao: 'Internet', categoria: 'Contas de Consumo', pagador: 'A', tipoValor: 'fixo', valor: 11990, dia: 20 },
+  { descricao: 'Streaming', categoria: 'Entretenimento', pagador: 'B', tipoValor: 'fixo', valor: 5590, dia: 12 },
+] as const;
+
+/** Valores fictícios da conta de luz de 2 meses atrás e do mês passado. */
+const LUZ = [21340, 19875] as const;
+
+interface Acao {
+  readonly quando: Date;
+  readonly autor: Pessoa;
+  readonly regra: Regra;
+}
+
 /**
  * Preenche um aparelho vazio com 3 meses de dados fictícios:
  * - há 2 meses: mês já acertado (fechado);
  * - mês passado: aberto, esperando o acerto;
  * - mês atual: em andamento, com recorrente "aguardando valor".
+ *
+ * As ações rodam em ordem de data, como teriam acontecido de verdade — assim os horários da
+ * Atividade e da linha do tempo fazem sentido.
  */
 export function semearDemonstracao(loja: Loja, hoje: Date = new Date()): void {
-  const em = (mesesAtras: number, dia: number, hora?: number) => loja.contexto(momento(hoje, mesesAtras, dia, hora));
-  const comoQuem = (p: Pessoa, mesesAtras: number, dia: number, hora?: number) => ({ ...em(mesesAtras, dia, hora), autor: p });
+  const mesAtual = competenciaDaData(dataLocal(hoje));
+  const inicio = somarMeses(mesAtual, -2);
+  const acoes: Acao[] = [];
+  const quando = (mesesAtras: number, dia: number, hora: number) => momento(hoje, mesesAtras, dia, hora);
+  const adicionar = (q: Date, autor: Pessoa, regra: Regra) => acoes.push({ quando: q, autor, regra });
 
-  loja.executar((e, ctx) => definirNomes(e, NOMES_DEMO.A, NOMES_DEMO.B, ctx), em(2, 1, 9));
-  loja.executar((_, ctx) => criarCategoriasIniciais(PCT_PROPORCIONAL_DEMO, ctx), em(2, 1, 9));
-
-  const inicio = somarMeses(competenciaDaData(dataLocal(hoje)), -2);
-  const recorrentes = [
-    { descricao: 'Aluguel', categoria: 'Moradia', pagador: 'A', tipoValor: 'fixo', valor: 250000, dia: 5 },
-    { descricao: 'Condomínio', categoria: 'Moradia', pagador: 'B', tipoValor: 'fixo', valor: 78000, dia: 10 },
-    { descricao: 'Conta de luz', categoria: 'Contas de Consumo', pagador: 'B', tipoValor: 'variavel', valor: 0, dia: 15 },
-    { descricao: 'Internet', categoria: 'Contas de Consumo', pagador: 'A', tipoValor: 'fixo', valor: 11990, dia: 20 },
-    { descricao: 'Streaming', categoria: 'Entretenimento', pagador: 'B', tipoValor: 'fixo', valor: 5590, dia: 12 },
-  ] as const;
-  for (const r of recorrentes) {
-    loja.executar(
-      (e, ctx) =>
-        criarRecorrente(e, {
-          descricao: r.descricao, categoriaId: categoria(e, r.categoria), pagador: r.pagador,
-          tipoValor: r.tipoValor, valor: r.valor, dia: r.dia, inicio, fim: null, pctA: null,
-        }, ctx),
-      em(2, 1, 10),
+  adicionar(quando(2, 1, 9), 'A', (e, ctx) => definirNomes(e, NOMES_DEMO.A, NOMES_DEMO.B, ctx));
+  adicionar(quando(2, 1, 9), 'A', (_, ctx) => criarCategoriasIniciais(PCT_PROPORCIONAL_DEMO, ctx));
+  for (const r of RECORRENTES) {
+    adicionar(quando(2, 1, 10), 'A', (e, ctx) =>
+      criarRecorrente(e, {
+        descricao: r.descricao, categoriaId: categoria(e, r.categoria), pagador: r.pagador,
+        tipoValor: r.tipoValor, valor: r.valor, dia: r.dia, inicio, fim: null, pctA: null,
+      }, ctx),
     );
   }
-
-  // Valores da conta de luz dos meses anteriores (o do mês atual fica "aguardando valor").
-  const luz = [21340, 19875];
-  loja.obterFoto().estado.despesas
-    .filter((d) => d.descricao === 'Conta de luz' && d.status === 'aguardando')
-    .sort((a, b) => (a.competencia < b.competencia ? -1 : 1))
-    .slice(0, 2)
-    .forEach((d, i) => {
-      loja.executar((e, ctx) => alterarDespesa(e, d.id, { valor: luz[i] ?? 20000 }, ctx), comoQuem('B', 2 - i, 16, 20));
-    });
-
-  loja.executar(
-    (e, ctx) =>
-      criarParcelamento(e, {
-        descricao: 'Sofá', categoriaId: categoria(e, 'Compras'), pagador: 'A', pctA: 5000, pctPadrao: true,
-        n: 10, valorParcela: 45000, dataCompra: dataLocal(momento(hoje, 2, 11)), primeiraCompetencia: inicio,
-      }, ctx),
-    comoQuem('A', 2, 11, 19),
+  adicionar(quando(2, 11, 19), 'A', (e, ctx) =>
+    criarParcelamento(e, {
+      descricao: 'Sofá', categoriaId: categoria(e, 'Compras'), pagador: 'A', pctA: 5000, pctPadrao: true,
+      n: 10, valorParcela: 45000, dataCompra: dataLocal(quando(2, 11, 12)), primeiraCompetencia: inicio,
+    }, ctx),
   );
 
   for (const l of LANCAMENTOS) {
     if (l.mesesAtras === 0 && l.dia > hoje.getDate()) continue;
-    const quando = momento(hoje, l.mesesAtras, l.dia, 18);
-    loja.executar(
-      (e, ctx) =>
-        criarDespesa(e, {
-          valor: l.valor, descricao: l.descricao, data: dataLocal(quando), competencia: competenciaDaData(dataLocal(quando)),
-          categoriaId: categoria(e, l.categoria), pagador: l.pagador,
-          pctA: e.categorias.find((c) => c.nome === l.categoria)?.pctA ?? 5000, pctPadrao: true,
-        }, ctx),
-      { ...loja.contexto(quando), autor: l.pagador },
+    const q = quando(l.mesesAtras, l.dia, 18);
+    adicionar(q, l.pagador, (e, ctx) =>
+      criarDespesa(e, {
+        valor: l.valor, descricao: l.descricao, data: dataLocal(q), competencia: competenciaDaData(dataLocal(q)),
+        categoriaId: categoria(e, l.categoria), pagador: l.pagador,
+        pctA: e.categorias.find((c) => c.nome === l.categoria)?.pctA ?? 5000, pctPadrao: true,
+      }, ctx),
     );
   }
 
+  // Bruno informa a conta de luz de cada mês passado.
+  LUZ.forEach((valor, i) => {
+    const mesesAtras = 2 - i;
+    const c = somarMeses(mesAtual, -mesesAtras);
+    adicionar(quando(mesesAtras, 16, 20), 'B', (e, ctx) => {
+      const d = e.despesas.find((x) => x.descricao === 'Conta de luz' && x.competencia === c && x.status === 'aguardando');
+      return d ? alterarDespesa(e, d.id, { valor }, ctx) : [];
+    });
+  });
+
+  // Ao virar cada mês, o app gera as recorrentes do mês.
+  for (const mesesAtras of [1, 0]) {
+    adicionar(quando(mesesAtras, 1, 8), 'A', (e, ctx) => gerarRecorrentesPendentes(e, ctx));
+  }
+
   // Uma edição feita pela outra pessoa, para aparecer o selo "editado por" e a linha do tempo.
-  const padaria = loja.obterFoto().estado.despesas.find((d) => d.descricao === 'Mercado' && d.competencia === somarMeses(inicio, 1));
-  if (padaria) loja.executar((e, ctx) => alterarDespesa(e, padaria.id, { valor: padaria.valor + 1500 }, ctx), comoQuem('B', 1, 3, 8));
+  adicionar(quando(1, 3, 8), 'B', (e, ctx) => {
+    const d = e.despesas.find((x) => x.descricao === 'Mercado' && x.competencia === somarMeses(inicio, 1) && x.origem.tipo === 'manual');
+    return d ? alterarDespesa(e, d.id, { valor: d.valor + 1500 }, ctx) : [];
+  });
 
   // O mês de 2 meses atrás já foi acertado.
-  loja.executar((e, ctx) => fecharMes(e, LIVRO_CASA, inicio, ctx), comoQuem('A', 1, 3, 21));
+  adicionar(quando(1, 3, 21), 'A', (e, ctx) => fecharMes(e, LIVRO_CASA, inicio, ctx));
+
+  acoes
+    .map((a, i) => ({ ...a, i }))
+    .sort((a, b) => a.quando.getTime() - b.quando.getTime() || a.i - b.i)
+    .forEach((a) => {
+      loja.executar(a.regra, { ...loja.contexto(a.quando), autor: a.autor });
+    });
 }

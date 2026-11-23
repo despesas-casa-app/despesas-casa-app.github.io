@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LocalEmMemoria } from '../armazenamento/local.ts';
+import { dataLocal } from '../dominio/competencia.ts';
 import { criarDespesa } from '../dominio/despesas.ts';
 import { divergenciasDeFechamento, resumoDoMes } from '../dominio/fechamento.ts';
 import { mesFechado } from '../dominio/estado.ts';
@@ -31,6 +32,17 @@ describe('Loja + modo demonstração', () => {
     expect(nov.contadas.length).toBeGreaterThan(5);
     expect(estado.despesas.filter((d) => d.origem.tipo === 'parcela' && !d.excluida)).toHaveLength(10);
     expect(estado.despesas.some((d) => d.editada && d.alteradoPor !== d.criadoPor)).toBe(true);
+  });
+
+  it('os horários da demonstração seguem o calendário (Atividade coerente)', async () => {
+    const { loja } = await lojaDemo();
+    const dataDe = (hlc: string) => dataLocal(new Date(Number(hlc.slice(0, 15))));
+    const eventos = loja.todosEventos;
+    const fechamento = eventos.find((e) => e.entidade === 'fechamento');
+    expect(fechamento && dataDe(fechamento.hlc)).toBe('2026-10-03');
+    const sofa = eventos.find((e) => e.entidade === 'parcelamento');
+    expect(sofa && dataDe(sofa.hlc)).toBe('2026-09-11');
+    expect(eventos.every((e) => Number(e.hlc.slice(0, 15)) <= HOJE.getTime())).toBe(true);
   });
 
   it('reabre do banco local sem duplicar nada', async () => {
