@@ -124,6 +124,10 @@ reaproveitando o mesmo motor. O modelo já nasce preparado para isso.
   centésimos de ponto percentual (0 a 10000), sem ponto flutuante.
 - Cada categoria tem uma divisão padrão, configurada na aba **Categorias**.
 - Ao criar uma despesa, o % da categoria é **copiado para a despesa** e pode ser mudado ali.
+- **Na tela, a divisão aparece sempre do ponto de vista de quem está usando o aparelho**
+  ("Sua parte nesta despesa", com a parte do outro ao lado). Ex.: se a Pessoa B tem 40% em
+  "Despesas da Casa" e é ela quem lança, o campo já vem com 40%. Por dentro, a despesa e a
+  categoria continuam guardando o % da Pessoa A.
 - Alterar o % de uma categoria vale para despesas novas. O app pergunta se deve aplicar também às
   despesas do **mês aberto** que ainda usam o % padrão. **Meses fechados nunca mudam.**
 

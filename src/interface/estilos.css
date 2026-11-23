@@ -1275,3 +1275,9 @@ h2 {
     transition: none !important;
   }
 }
+
+.pct-outro {
+  color: var(--texto-suave);
+  font-weight: 600;
+  font-size: 0.9rem;
+}

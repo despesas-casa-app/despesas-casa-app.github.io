@@ -50,6 +50,11 @@ interface MesFechadoPendente {
   readonly podeMover: boolean;
 }
 
+/** % de quem usa o aparelho, a partir do % da Pessoa A (e vice-versa: a conta é a mesma). */
+function pctDe(euSou: Pessoa, pctA: PontosBase): PontosBase {
+  return euSou === 'A' ? pctA : 10000 - pctA;
+}
+
 function pctParaTexto(p: PontosBase): string {
   return formatarPercentual(p).replace('%', '');
 }
@@ -61,7 +66,7 @@ function formularioInicial(estado: Estado, euSou: Pessoa, modo: Modo, existente?
       descricao: existente.descricao,
       categoriaId: existente.categoriaId,
       pagador: existente.pagador,
-      pctTexto: pctParaTexto(existente.pctA),
+      pctTexto: pctParaTexto(pctDe(euSou, existente.pctA)),
       pctPadrao: existente.pctPadrao,
       data: existente.data,
       competencia: existente.competencia,
@@ -80,7 +85,7 @@ function formularioInicial(estado: Estado, euSou: Pessoa, modo: Modo, existente?
     descricao: '',
     categoriaId: preferida,
     pagador: euSou,
-    pctTexto: pctParaTexto(categoriaPorId(estado, preferida)?.pctA ?? 5000),
+    pctTexto: pctParaTexto(pctDe(euSou, categoriaPorId(estado, preferida)?.pctA ?? 5000)),
     pctPadrao: true,
     data: hoje,
     competencia: competenciaDaData(hoje),
@@ -106,7 +111,11 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
 
   const editando = Boolean(existente);
   const categoria = categoriaPorId(estado, f.categoriaId);
-  const pct = lerPercentual(f.pctTexto);
+  // O campo mostra "sua parte"; por dentro a despesa guarda o % da Pessoa A.
+  const meuPct = lerPercentual(f.pctTexto);
+  const pct = meuPct === null ? null : pctDe(euSou, meuPct);
+  const textoMeu = (pctA: PontosBase): string => pctParaTexto(pctDe(euSou, pctA));
+  const outro = euSou === 'A' ? 'B' : 'A';
   const sugestoes = useMemo(
     () => (mostrarSugestoes && !editando ? sugerir(estado, f.descricao, 4) : []),
     [estado, f.descricao, mostrarSugestoes, editando],
@@ -141,7 +150,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
   const escolherCategoria = (categoriaId: string): void => {
     setCategoriaTocada(true);
     const nova = categoriaPorId(estado, categoriaId);
-    mudar(f.pctPadrao && nova ? { categoriaId, pctTexto: pctParaTexto(nova.pctA) } : { categoriaId });
+    mudar(f.pctPadrao && nova ? { categoriaId, pctTexto: textoMeu(nova.pctA) } : { categoriaId });
   };
 
   const aplicarSugestao = (s: Sugestao): void => {
@@ -151,7 +160,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
       descricao: s.descricao,
       categoriaId: s.categoriaId,
       pagador: s.pagador,
-      pctTexto: pctParaTexto(pctSugerido),
+      pctTexto: textoMeu(pctSugerido),
       pctPadrao: s.pctPadrao,
     });
     setMostrarSugestoes(false);
@@ -170,15 +179,15 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
         descricao,
         categoriaId: exata.categoriaId,
         pagador: exata.pagador,
-        pctTexto: pctParaTexto(exata.pctPadrao && cat ? cat.pctA : exata.pctA),
+        pctTexto: textoMeu(exata.pctPadrao && cat ? cat.pctA : exata.pctA),
         pctPadrao: exata.pctPadrao,
       });
     } else mudar({ descricao });
   };
 
   const mudarPct = (texto: string): void => {
-    const valor = lerPercentual(texto);
-    mudar({ pctTexto: texto, pctPadrao: valor !== null && valor === categoria?.pctA });
+    const meu = lerPercentual(texto);
+    mudar({ pctTexto: texto, pctPadrao: meu !== null && pctDe(euSou, meu) === categoria?.pctA });
   };
 
   const mudarData = (data: string): void => {
@@ -411,7 +420,7 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
         </div>
 
         <div className="campo">
-          <label htmlFor="campo-pct">Divisão: % de {estado.config.nomeA}</label>
+          <label htmlFor="campo-pct">Sua parte nesta despesa ({nomeDe(estado.config, euSou)})</label>
           <div className="linha-pct">
             <input
               id="campo-pct"
@@ -423,21 +432,28 @@ export function EditarDespesa({ id, modoInicial = 'unica' }: { id?: string; modo
               aria-describedby="pct-ajuda"
             />
             <span className="sufixo">%</span>
+            <span className="pct-outro">
+              {meuPct === null ? '' : `${nomeDe(estado.config, outro)}: ${formatarPercentual(10000 - meuPct)}`}
+            </span>
+          </div>
+          <div className="linha-pct">
             <button type="button" className="botao-mini" onClick={() => { mudarPct('50'); }}>
-              50/50
+              Metade cada
             </button>
             {categoria && !f.pctPadrao && (
-              <button type="button" className="botao-mini" onClick={() => { mudar({ pctTexto: pctParaTexto(categoria.pctA), pctPadrao: true }); }}>
-                Padrão ({formatarPercentual(categoria.pctA)})
+              <button type="button" className="botao-mini" onClick={() => { mudar({ pctTexto: textoMeu(categoria.pctA), pctPadrao: true }); }}>
+                Voltar ao padrão ({formatarPercentual(pctDe(euSou, categoria.pctA))})
               </button>
             )}
           </div>
           <p id="pct-ajuda" className="ajuda">
-            {pct === null
+            {meuPct === null
               ? 'Use um número de 0 a 100, com até 2 casas.'
-              : `${estado.config.nomeB}: ${formatarPercentual(10000 - pct)}${f.pctPadrao ? ' · padrão da categoria' : ''}`}
-            {cotas && ` · cotas: ${estado.config.nomeA} ${formatarReais(cotas.A)}, ${estado.config.nomeB} ${formatarReais(cotas.B)}`}
-            {cotas && f.modo === 'parcelado' && ' (por parcela)'}
+              : f.pctPadrao
+                ? `Padrão da categoria ${categoria?.nome ?? ''}.`
+                : 'Divisão só desta despesa.'}
+            {cotas &&
+              ` Sua parte: ${formatarReais(cotas[euSou])} · parte de ${nomeDe(estado.config, outro)}: ${formatarReais(cotas[outro])}${f.modo === 'parcelado' ? ' (por parcela)' : ''}.`}
           </p>
         </div>
 

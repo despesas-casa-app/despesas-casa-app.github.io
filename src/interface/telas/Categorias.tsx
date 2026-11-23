@@ -25,25 +25,30 @@ interface Edicao {
 
 export function Categorias() {
   const loja = useLoja();
-  const { estado } = useFoto();
+  const { estado, euSou } = useFoto();
   const avisar = useAvisar();
   const [edicao, setEdicao] = useState<Edicao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [perguntaAplicar, setPerguntaAplicar] = useState<{ id: string; dados: DadosCategoria; quantas: number } | null>(null);
   const { nomeA, nomeB } = estado.config;
+  // O campo mostra a parte de quem usa o aparelho; a categoria guarda o % da Pessoa A.
+  const meuDe = (p: number): number => (euSou === 'A' ? p : 10000 - p);
+  const meuNome = euSou === 'A' ? nomeA : nomeB;
+  const outroNome = euSou === 'A' ? nomeB : nomeA;
 
   const abrir = (c?: Categoria): void => {
     setErro(null);
     setEdicao(
       c
-        ? { id: c.id, nome: c.nome, icone: c.icone, cor: c.cor, pctTexto: formatarPercentual(c.pctA).replace('%', '') }
+        ? { id: c.id, nome: c.nome, icone: c.icone, cor: c.cor, pctTexto: formatarPercentual(meuDe(c.pctA)).replace('%', '') }
         : { id: null, nome: '', icone: '🏷️', cor: CORES[0] ?? '#999', pctTexto: '50' },
     );
   };
 
   const salvar = (): void => {
     if (!edicao) return;
-    const pct = lerPercentual(edicao.pctTexto);
+    const meu = lerPercentual(edicao.pctTexto);
+    const pct = meu === null ? null : meuDe(meu);
     if (pct === null) {
       setErro('Percentual inválido. Use de 0 a 100, com até 2 casas.');
       return;
@@ -159,7 +164,7 @@ export function Categorias() {
               </div>
             </fieldset>
             <div className="campo">
-              <label htmlFor="cat-pct">Divisão padrão: % de {nomeA}</label>
+              <label htmlFor="cat-pct">Divisão padrão: sua parte ({meuNome})</label>
               <div className="linha-pct">
                 <input id="cat-pct" type="text" inputMode="decimal" value={edicao.pctTexto} onChange={(e) => { setEdicao({ ...edicao, pctTexto: e.target.value }); }} />
                 <span className="sufixo">%</span>
@@ -167,7 +172,7 @@ export function Categorias() {
               <p className="ajuda">
                 {(() => {
                   const p = lerPercentual(edicao.pctTexto);
-                  return p === null ? 'De 0 a 100, com até 2 casas.' : `${nomeB}: ${formatarPercentual(10000 - p)}`;
+                  return p === null ? 'De 0 a 100, com até 2 casas.' : `${outroNome}: ${formatarPercentual(10000 - p)}`;
                 })()}
               </p>
             </div>
