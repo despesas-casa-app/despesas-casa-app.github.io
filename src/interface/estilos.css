@@ -1,0 +1,145 @@
+:root {
+  --fundo: #f6f7f7;
+  --superficie: #ffffff;
+  --texto: #14201f;
+  --texto-suave: #55625f;
+  --marca: #0f766e;
+  --ok: #15803d;
+  --alerta: #b45309;
+  --borda: #dfe5e4;
+  --raio: 16px;
+
+  color-scheme: light dark;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fundo: #0d1413;
+    --superficie: #162120;
+    --texto: #e7efed;
+    --texto-suave: #9aaba7;
+    --marca: #2dd4bf;
+    --ok: #4ade80;
+    --alerta: #fbbf24;
+    --borda: #26332f;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  min-height: 100dvh;
+}
+
+.pagina {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topo h1 {
+  font-size: 1.4rem;
+  margin: 0;
+}
+
+.topo-icone {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.cartao {
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  padding: 20px;
+}
+
+.cartao p {
+  margin: 0 0 12px;
+}
+
+.cartao p:last-child {
+  margin-bottom: 0;
+}
+
+.destaque {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--marca);
+}
+
+.exemplo {
+  color: var(--texto-suave);
+}
+
+.exemplo strong {
+  color: var(--texto);
+  font-variant-numeric: tabular-nums;
+}
+
+.estado {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.estado li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 16px;
+  background: var(--superficie);
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+}
+
+.ponto {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--texto-suave);
+  flex-shrink: 0;
+}
+
+.ponto-ok {
+  background: var(--ok);
+}
+
+.ponto-alerta {
+  background: var(--alerta);
+}
+
+.rodape {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
