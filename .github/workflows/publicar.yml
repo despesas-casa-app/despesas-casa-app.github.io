@@ -62,6 +62,12 @@ jobs:
           fi
 
       - name: Construir o site
+        # Identificadores PÚBLICOS do Google (variables do repositório, não secrets: vão no site e
+        # só funcionam no endereço do app). Ver docs/guias/02-google-cloud.md.
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_API_KEY: ${{ vars.GOOGLE_API_KEY }}
+          VITE_GOOGLE_APP_ID: ${{ vars.GOOGLE_APP_ID }}
         run: npm run build
 
       - name: Empacotar para o Pages

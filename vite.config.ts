@@ -17,18 +17,21 @@ const versao = (process.env['GITHUB_SHA'] ?? 'local').slice(0, 7);
  * Limitação conhecida: "frame-ancestors" não funciona via <meta>; a proteção contra o app ser
  * embutido em outro site é feita em src/interface/protecao.ts.
  *
- * Fase 3 vai acrescentar os domínios do Google (login, Picker e APIs) — e só eles.
+ * Além do próprio site, só os endereços do Google necessários (especificação 5.6):
+ * - login (Google Identity Services): accounts.google.com;
+ * - seletor de arquivos (Picker): apis.google.com e a janela em docs.google.com;
+ * - APIs: sheets.googleapis.com (planilha) e www.googleapis.com (Drive: e-mail e compartilhar).
  */
 export const CSP = [
   "default-src 'none'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "img-src 'self' data:",
+  "script-src 'self' https://accounts.google.com/gsi/client https://apis.google.com",
+  "style-src 'self' https://accounts.google.com/gsi/style",
+  "img-src 'self' data: https://*.googleusercontent.com https://ssl.gstatic.com https://www.gstatic.com",
   "font-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://sheets.googleapis.com https://www.googleapis.com https://accounts.google.com/gsi/",
   "manifest-src 'self'",
   "worker-src 'self'",
-  "frame-src 'none'",
+  "frame-src https://accounts.google.com/gsi/ https://docs.google.com https://drive.google.com",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
